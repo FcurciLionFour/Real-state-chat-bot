@@ -1,0 +1,503 @@
+<section class="admin-workspace">
+  <aside class="admin-sidebar">
+    <a routerLink="/" class="admin-brand">
+      <span><lucide-icon name="house" [size]="16"></lucide-icon></span>
+      <strong>busca.ar</strong>
+    </a>
+
+    <button class="admin-new" type="button" (click)="openSearch()">
+      <lucide-icon name="plus" [size]="16"></lucide-icon>
+      Nueva busqueda
+    </button>
+
+    <nav class="admin-nav" aria-label="Navegacion principal">
+      <p>Navegacion</p>
+      <a routerLink="/" class="admin-nav__item"><lucide-icon name="house" [size]="15"></lucide-icon>Inicio</a>
+      <a routerLink="/search" class="admin-nav__item"><lucide-icon name="messages-square" [size]="15"></lucide-icon>Buscar</a>
+      <a routerLink="/app/chats" class="admin-nav__item"><lucide-icon name="message-square" [size]="15"></lucide-icon>Chats</a>
+      <a routerLink="/app/favorites" class="admin-nav__item"><lucide-icon name="star" [size]="15"></lucide-icon>Favoritos</a>
+      <a routerLink="/blog" class="admin-nav__item"><lucide-icon name="book-open" [size]="15"></lucide-icon>Blog</a>
+      <a routerLink="/app/publish-property" class="admin-nav__item"><lucide-icon name="building-2" [size]="15"></lucide-icon>Publicar propiedad</a>
+      <a routerLink="/app/my-properties" class="admin-nav__item"><lucide-icon name="layout-grid" [size]="15"></lucide-icon>Mis propiedades</a>
+      <a routerLink="/app/admin" class="admin-nav__item is-active"><lucide-icon name="settings" [size]="15"></lucide-icon>Admin</a>
+    </nav>
+
+    <nav class="admin-nav admin-nav--secondary" aria-label="Secciones admin">
+      <p>Admin</p>
+      <button type="button" [class.is-active]="activeSection() === 'dashboard'" (click)="setSection('dashboard')">Dashboard</button>
+      <button type="button" [class.is-active]="activeSection() === 'users'" (click)="setSection('users')">Usuarios</button>
+      <button type="button" [class.is-active]="activeSection() === 'conversations'" (click)="setSection('conversations')">Conversaciones</button>
+      <button type="button" [class.is-active]="activeSection() === 'searchRuns'" (click)="setSection('searchRuns')">Search runs</button>
+      <button type="button" [class.is-active]="activeSection() === 'properties'" (click)="setSection('properties')">Propiedades</button>
+      <button type="button" [class.is-active]="activeSection() === 'pending'" (click)="setSection('pending')">Pendientes</button>
+      <button type="button" [class.is-active]="activeSection() === 'blog'" (click)="setSection('blog')">Blog</button>
+      <button type="button" [class.is-active]="activeSection() === 'scraping'" (click)="setSection('scraping')">Scraping</button>
+      <button type="button" [class.is-active]="activeSection() === 'leads'" (click)="setSection('leads')">Leads</button>
+    </nav>
+
+    <footer class="admin-user">
+      <span>{{ getUserInitial() }}</span>
+      <div>
+        <strong>{{ authStore.user()?.email ?? 'Admin' }}</strong>
+        <small>Administrador</small>
+      </div>
+    </footer>
+  </aside>
+
+  <main class="admin-main">
+    <header class="admin-header">
+      <div>
+        <h1>Operacion del MVP</h1>
+        <p>Panel admin para usuarios, busquedas, fuentes, contenidos y moderacion.</p>
+      </div>
+      <div class="admin-header__actions">
+        <button type="button" (click)="invalidateOperationalCache()" [disabled]="cacheInvalidating()">
+          {{ cacheInvalidating() ? 'Invalidando...' : 'Invalidar cache' }}
+        </button>
+        <button type="button" class="is-primary" (click)="refreshAdminData()" [disabled]="refreshing()">
+          {{ refreshing() ? 'Actualizando...' : 'Actualizar panel' }}
+        </button>
+      </div>
+    </header>
+
+    @if (cacheOperationSummary()) {
+      <p class="admin-banner admin-state--success">{{ cacheOperationSummary() }}</p>
+    }
+    @if (operationSummary()) {
+      <p class="admin-banner admin-banner--success admin-state--success">{{ operationSummary() }}</p>
+    }
+    @if (error()) {
+      <p class="admin-banner admin-banner--error admin-state--error">{{ error() }}</p>
+    }
+
+    @if (loading() && !hasRenderableAdminData()) {
+      <section class="admin-card">Cargando panel admin...</section>
+    } @else {
+      @if (activeSection() === 'dashboard') {
+        @if (overview(); as overviewValue) {
+          <section class="admin-metrics">
+            @for (metric of [
+              overviewMetric('Usuarios registrados', overviewValue.usersCount, 'base actual'),
+              overviewMetric('Conversaciones', overviewValue.conversationsCount, 'actividad guardada'),
+              overviewMetric('Busquedas realizadas', overviewValue.searchRunsCount, 'search runs'),
+              overviewMetric('Propiedades indexadas', overviewValue.propertiesCacheCount, 'cache operativo'),
+              overviewMetric('Leads / contactos', overviewValue.leadsCount ?? 0, 'base real'),
+              overviewMetric('Articulos blog', overviewValue.blogArticlesCount ?? 0, 'contenido')
+            ]; track metric.label) {
+              <article class="admin-metric metric-card">
+                <span class="admin-metric__icon"><lucide-icon name="activity" [size]="17"></lucide-icon></span>
+                <p>{{ metric.label }}</p>
+                <strong>{{ metric.value }}</strong>
+                <small>{{ metric.helper }}</small>
+              </article>
+            }
+          </section>
+        }
+
+        <section class="admin-dashboard-grid">
+          <article class="admin-card">
+            <header class="admin-card__header">
+              <div>
+                <h2>Actividad reciente</h2>
+                <p>Ultimas conversaciones registradas.</p>
+              </div>
+              <button type="button" (click)="setSection('conversations')">Ver todas</button>
+            </header>
+            <div class="admin-table">
+              <div class="admin-table__head"><span>Actividad</span><span>Detalle</span><span>Usuario</span><span>Fecha</span></div>
+              @for (item of conversations().slice(0, 5); track item.id) {
+                <button class="admin-table__row admin-table__row--button" type="button" (click)="openConversationDetail(item.id)">
+                  <span>Nueva busqueda</span>
+                  <span>{{ item.title }}</span>
+                  <span>{{ item.user.email }}</span>
+                  <span>{{ relativeDate(item.updatedAt) }}</span>
+                </button>
+              } @empty {
+                <div class="admin-empty">
+                  <h3>Sin actividad reciente</h3>
+                  <p>Cuando haya conversaciones, van a aparecer aca.</p>
+                </div>
+              }
+            </div>
+          </article>
+
+          <article class="admin-card">
+            <header class="admin-card__header">
+              <div>
+                <h2>Estado de fuentes de scraping</h2>
+                <p>Salud operativa por portal.</p>
+              </div>
+              <button type="button" (click)="setSection('scraping')">Ver detalle</button>
+            </header>
+            <div class="admin-table admin-table--sources">
+              <div class="admin-table__head"><span>Fuente</span><span>Estado</span><span>Ultima ejecucion</span><span>Resultados</span></div>
+              @for (source of scrapingSources().slice(0, 5); track source.id) {
+                <div class="admin-table__row">
+                  <span>{{ source.source }}</span>
+                  <span class="source-status" [class]="'source-status source-status--' + statusClass(source.status)">{{ source.status }}</span>
+                  <span>{{ source.lastRunAt ? relativeDate(source.lastRunAt) : '-' }}</span>
+                  <span>{{ source.resultsCount }}</span>
+                </div>
+              } @empty {
+                <div class="admin-empty">
+                  <h3>Sin fuentes registradas</h3>
+                  <p>Cuando el pipeline reporte fuentes, se van a ver aca.</p>
+                </div>
+              }
+            </div>
+          </article>
+        </section>
+
+        <section>
+          <h2 class="admin-section-title">Accesos rapidos</h2>
+          <div class="admin-quick-grid">
+            @for (action of quickActions; track action.section) {
+              <article class="admin-quick-card">
+                <span><lucide-icon name="arrow-up-right" [size]="17"></lucide-icon></span>
+                <strong>{{ action.title }}</strong>
+                <p>{{ action.copy }}</p>
+                <button type="button" (click)="setSection(action.section)">
+                  {{ action.action }}
+                  <lucide-icon name="arrow-up-right" [size]="14"></lucide-icon>
+                </button>
+              </article>
+            }
+          </div>
+        </section>
+      }
+
+      @if (activeSection() !== 'dashboard') {
+        <section class="admin-card">
+          <header class="admin-card__header admin-card__header--tools">
+            <div>
+              <h2>
+                @switch (activeSection()) {
+                  @case ('users') { Usuarios }
+                  @case ('conversations') { Conversaciones recientes }
+                  @case ('searchRuns') { Search runs recientes }
+                  @case ('properties') { Propiedades }
+                  @case ('pending') { Propiedades pendientes }
+                  @case ('blog') { Blog / articulos }
+                  @case ('scraping') { Scraping / fuentes }
+                  @case ('leads') { Leads / contactos }
+                  @default { Operacion }
+                }
+              </h2>
+              <p>{{ currentFilteredCount() }} elementos visibles</p>
+            </div>
+            <div class="admin-card__tools">
+              <button type="button" class="admin-back" (click)="setSection('dashboard')">
+                <lucide-icon name="arrow-left" [size]="15"></lucide-icon>
+                Volver al panel
+              </button>
+              <label class="admin-search">
+                <lucide-icon name="search" [size]="15"></lucide-icon>
+                <input [value]="searchQuery()" (input)="updateSearchQuery($any($event.target).value)" [placeholder]="sectionSearchPlaceholder()" />
+              </label>
+            </div>
+          </header>
+
+          @if (activeSection() === 'users') {
+            <div class="admin-filters">
+              <label>
+                Rol
+                <select (change)="setUserRoleFilter($event)">
+                  <option value="ALL">Todos</option>
+                  <option value="USER">USER</option>
+                  <option value="OWNER">OWNER</option>
+                  <option value="ADMIN">ADMIN</option>
+                </select>
+              </label>
+            </div>
+            <div class="admin-table admin-table--users">
+              <div class="admin-table__head"><span>Email</span><span>Rol</span><span>Conversaciones</span><span>Alta</span><span>Acciones</span></div>
+              @for (item of filteredUsers(); track item.id) {
+                <div class="admin-table__row">
+                  <span>{{ item.email }}</span>
+                  <span class="role-pill" [class.role-pill--admin]="item.role === 'ADMIN'">{{ item.role }}</span>
+                  <span>{{ item.conversationsCount }}</span>
+                  <span>{{ item.createdAt | date: 'dd MMM yyyy' }}</span>
+                  <span class="admin-row-actions">
+                    <button type="button" (click)="copyIdentifier('ID de usuario', item.id)">Copiar ID</button>
+                    <button type="button" (click)="toggleUserRole(item.id, item.role)" [disabled]="isRoleUpdating(item.id)">
+                      {{ item.role === 'USER' ? 'Hacer owner' : item.role === 'OWNER' ? 'Hacer admin' : 'Hacer user' }}
+                    </button>
+                  </span>
+                </div>
+              } @empty {
+                <section class="admin-empty">
+                  <h3>No hay usuarios para ese filtro.</h3>
+                  <p>Ajusta la busqueda o actualiza el panel.</p>
+                </section>
+              }
+            </div>
+          }
+
+          @if (activeSection() === 'conversations') {
+            <div class="admin-table admin-table--conversations">
+              <div class="admin-table__head"><span>Conversacion</span><span>Usuario</span><span>Mensajes</span><span>Busquedas</span><span>Acciones</span></div>
+              @for (item of filteredConversations(); track item.id) {
+                <div class="admin-table__row">
+                  <span>{{ item.title }}</span>
+                  <span>{{ item.user.email }}</span>
+                  <span>{{ item.messagesCount }}</span>
+                  <span>{{ item.searchRunsCount }}</span>
+                  <span class="admin-row-actions">
+                    <button type="button" (click)="openConversationDetail(item.id)" [disabled]="isDetailLoading('conversation:' + item.id)">Ver detalle</button>
+                    <a [routerLink]="['/app/chats', item.id]">Abrir chat</a>
+                  </span>
+                </div>
+              } @empty {
+                <section class="admin-empty">
+                  <h3>No hay conversaciones para ese filtro.</h3>
+                  <p>Cuando el chat tenga actividad, aparecera aca.</p>
+                </section>
+              }
+            </div>
+
+            @if (selectedConversationDetail(); as detail) {
+              <article class="admin-detail">
+                <header>
+                  <div>
+                    <h3>{{ detail.title }}</h3>
+                    <p>{{ detail.user.email }} / {{ detail.messages.length }} mensajes / {{ detail.lastSearchResults.length }} resultados rehidratados</p>
+                  </div>
+                  @if (detail.lastSearchRun) {
+                    <button type="button" (click)="openSearchRunFromConversation(detail.lastSearchRun.id)">Ver ultimo search run</button>
+                  }
+                </header>
+                <div class="admin-detail__grid">
+                  <section>
+                    <h4>Filtros</h4>
+                    <p>{{ formatFiltersSummary(detail.searchState?.filters) }}</p>
+                  </section>
+                  <section>
+                    <h4>Ultimos mensajes</h4>
+                    @for (message of detail.messages.slice(-4); track message.id) {
+                      <p><strong>{{ message.role }}:</strong> {{ message.content }}</p>
+                    }
+                  </section>
+                </div>
+                @if (detail.lastSearchResults.length > 0) {
+                  <div class="admin-detail__results">
+                    @for (result of detail.lastSearchResults.slice(0, 5); track result.property.id) {
+                      <a [href]="result.property.sourceUrl" target="_blank" rel="noreferrer">
+                        #{{ result.position }} / {{ result.property.title }} / {{ result.property.source }}
+                      </a>
+                    }
+                  </div>
+                }
+              </article>
+            }
+          }
+
+          @if (activeSection() === 'searchRuns') {
+            <div class="admin-filters">
+              <label>
+                Estado
+                <select (change)="setSearchRunStatusFilter($event)">
+                  <option value="ALL">Todos</option>
+                  <option value="COMPLETED">Completados</option>
+                  <option value="PARTIAL">Parciales</option>
+                  <option value="FAILED">Fallidos</option>
+                </select>
+              </label>
+            </div>
+            <div class="admin-table admin-table--search-runs">
+              <div class="admin-table__head"><span>Query</span><span>Estado</span><span>Resultados</span><span>Usuario</span><span>Acciones</span></div>
+              @for (item of filteredSearchRuns(); track item.id) {
+                <div class="admin-table__row">
+                  <span>{{ item.queryText }}</span>
+                  <span class="source-status" [class]="'source-status source-status--' + statusTone(item.status)">
+                    {{ formatSearchRunStatus(item.status) }}
+                  </span>
+                  <span>{{ item.resultCount }}</span>
+                  <span>{{ item.conversation.user.email }}</span>
+                  <span class="admin-row-actions">
+                    <button type="button" (click)="openSearchRunDetail(item.id)" [disabled]="isDetailLoading('search-run:' + item.id)">Ver detalle</button>
+                    <button type="button" (click)="openConversationFromSearchRun(item.conversation.id)">Ver chat</button>
+                  </span>
+                </div>
+              } @empty {
+                <section class="admin-empty">
+                  <h3>No hay search runs para ese filtro.</h3>
+                  <p>Cuando se ejecuten busquedas, se van a ver aca.</p>
+                </section>
+              }
+            </div>
+
+            @if (selectedSearchRunDetail(); as detail) {
+              <article class="admin-detail">
+                <header>
+                  <div>
+                    <h3>{{ detail.queryText }}</h3>
+                    <p>{{ detail.conversation.user.email }} / {{ detail.resultCount }} resultados / {{ detail.sourcesUsed.join(', ') || 'sin fuentes' }}</p>
+                  </div>
+                  <button type="button" (click)="openConversationFromSearchRun(detail.conversation.id)">Ver conversacion</button>
+                </header>
+                <div class="admin-detail__grid">
+                  <section>
+                    <h4>Filtros usados</h4>
+                    <p>{{ formatFiltersSummary(detail.filtersSnapshot) }}</p>
+                  </section>
+                  <section>
+                    <h4>Estado</h4>
+                    <p>{{ formatSearchRunStatus(detail.status) }}</p>
+                    @if (detail.errorSummary) {
+                      <p>{{ detail.errorSummary }}</p>
+                    }
+                  </section>
+                </div>
+                @if (detail.results.length > 0) {
+                  <div class="admin-detail__results">
+                    @for (result of detail.results.slice(0, 8); track result.property.id) {
+                      <a [href]="result.property.sourceUrl" target="_blank" rel="noreferrer">
+                        #{{ result.position }} / {{ result.property.title }} / score {{ result.rankScore }}
+                      </a>
+                    }
+                  </div>
+                }
+              </article>
+            }
+          }
+
+          @if (activeSection() === 'properties') {
+            <div class="admin-filters">
+              <label>
+                Fuente
+                <select (change)="setPropertySourceFilter($event)">
+                  <option value="ALL">Todas</option>
+                  @for (source of propertySourceOptions(); track source) {
+                    <option [value]="source">{{ source }}</option>
+                  }
+                </select>
+              </label>
+            </div>
+            <div class="admin-table admin-table--properties">
+              <div class="admin-table__head"><span>Titulo</span><span>Fuente</span><span>Ubicacion</span><span>Favoritos</span><span>Acciones</span></div>
+              @for (item of filteredProperties(); track item.id) {
+                <div class="admin-table__row">
+                  <span>{{ item.title }}</span>
+                  <span>{{ item.source }}</span>
+                  <span>{{ item.neighborhood || item.city || '-' }}</span>
+                  <span>{{ item.favoritesCount }}</span>
+                  <span class="admin-row-actions">
+                    <a [href]="item.sourceUrl" target="_blank" rel="noreferrer">Ver fuente</a>
+                    <button type="button" (click)="copyIdentifier('ID de propiedad', item.id)">Copiar ID</button>
+                  </span>
+                </div>
+              } @empty {
+                <section class="admin-empty">
+                  <h3>No hay propiedades para ese filtro.</h3>
+                  <p>Ejecuta una busqueda o cambia el filtro activo.</p>
+                </section>
+              }
+            </div>
+          }
+
+          @if (activeSection() === 'scraping') {
+            <div class="admin-table admin-table--sources">
+              <div class="admin-table__head"><span>Fuente</span><span>Estado</span><span>Ultima corrida</span><span>Resultados</span><span>Errores</span></div>
+              @for (source of filteredScrapingSources(); track source.id) {
+                <div class="admin-table__row">
+                  <span>{{ source.source }}</span>
+                  <span class="source-status" [class]="'source-status source-status--' + statusClass(source.status)">{{ source.status }}</span>
+                  <span>{{ source.lastRunAt ? relativeDate(source.lastRunAt) : '-' }}</span>
+                  <span>{{ source.resultsCount }}</span>
+                  <span>{{ source.errorSummary || '-' }}</span>
+                </div>
+              } @empty {
+                <section class="admin-empty">
+                  <h3>Aun no hay fuentes registradas.</h3>
+                  <p>El backend ya expone esta informacion desde la BBDD.</p>
+                </section>
+              }
+            </div>
+          }
+
+          @if (activeSection() === 'blog') {
+            <app-blog-form (articleSaved)="refreshBlogArticles()" />
+            <div class="admin-table admin-table--properties">
+              <div class="admin-table__head"><span>Titulo</span><span>Categoria</span><span>Estado</span><span>Fecha</span><span>Acciones</span></div>
+              @for (item of filteredBlogArticles(); track item.id) {
+                <div class="admin-table__row">
+                  <span>{{ item.title }}</span>
+                  <span>{{ item.category }}</span>
+                  <span class="source-status" [class]="'source-status source-status--' + statusClass(item.status)">{{ item.status }}</span>
+                  <span>{{ item.publishedAt ? (item.publishedAt | date: 'dd MMM yyyy') : 'Sin publicar' }}</span>
+                  <span class="admin-row-actions">
+                    <a [routerLink]="['/blog', item.slug]">Ver</a>
+                    @if (item.status === 'PUBLISHED') {
+                      <button type="button" (click)="unpublishBlogArticle(item.id)">Despublicar</button>
+                    } @else {
+                      <button type="button" (click)="publishBlogArticle(item.id)">Publicar</button>
+                    }
+                    <button type="button" (click)="archiveBlogArticle(item.id)">Archivar</button>
+                    <button type="button" (click)="deleteBlogArticle(item.id)">Eliminar</button>
+                  </span>
+                </div>
+              } @empty {
+                <section class="admin-empty">
+                  <h3>Aun no hay articulos.</h3>
+                  <p>Crea el primer articulo desde el formulario superior.</p>
+                </section>
+              }
+            </div>
+          }
+
+          @if (activeSection() === 'leads') {
+            <div class="admin-table admin-table--properties">
+              <div class="admin-table__head"><span>Contacto</span><span>Origen</span><span>Mensaje</span><span>Estado</span><span>Fecha</span></div>
+              @for (item of filteredLeads(); track item.id) {
+                <div class="admin-table__row">
+                  <span>{{ item.name || item.email || item.phone || 'Sin datos' }}</span>
+                  <span>{{ item.source || '-' }}</span>
+                  <span>{{ item.message }}</span>
+                  <span class="source-status">{{ item.status }}</span>
+                  <span>{{ item.createdAt | date: 'dd MMM yyyy' }}</span>
+                </div>
+              } @empty {
+                <section class="admin-empty">
+                  <h3>Aun no hay leads.</h3>
+                  <p>Cuando entren contactos desde formularios o CTAs, apareceran en esta lista.</p>
+                </section>
+              }
+            </div>
+          }
+
+          @if (activeSection() === 'pending') {
+            <div class="admin-table admin-table--owner-pending">
+              <div class="admin-table__head"><span>Propiedad</span><span>Usuario</span><span>Fecha envio</span><span>Precio</span><span>Acciones</span></div>
+              @for (item of filteredOwnerPendingProperties(); track item.id) {
+                <div class="admin-table__row">
+                  <span>{{ item.title }}</span>
+                  <span>{{ item.owner?.email ?? item.contactEmail }}</span>
+                  <span>{{ item.submittedAt ? (item.submittedAt | date: 'dd MMM yyyy HH:mm') : '-' }}</span>
+                  <span>{{ formatOwnerPropertyPrice(item) }}</span>
+                  <span class="admin-row-actions">
+                    <button type="button" (click)="copyIdentifier('ID de propiedad', item.id)">Copiar ID</button>
+                    <button type="button" (click)="approveOwnerProperty(item.id)" [disabled]="isReviewingOwnerProperty(item.id)">Aprobar</button>
+                    <button type="button" (click)="rejectOwnerProperty(item.id)" [disabled]="isReviewingOwnerProperty(item.id)">Rechazar</button>
+                  </span>
+                </div>
+              } @empty {
+                <section class="admin-empty">
+                  <h3>No hay propiedades pendientes.</h3>
+                  <p>Cuando un owner envie una propiedad a revision, va a aparecer aca.</p>
+                </section>
+              }
+            </div>
+          }
+
+          @if (activeSection() !== 'dashboard') {
+            <footer class="admin-pagination">
+              <button type="button" (click)="goToPreviousPage()" [disabled]="currentMeta().page <= 1 || sectionLoading() === activeSection()">Anterior</button>
+              <span>Pagina {{ currentMeta().page }} de {{ totalPages(currentMeta()) }}</span>
+              <button type="button" (click)="goToNextPage()" [disabled]="currentMeta().page >= totalPages(currentMeta()) || sectionLoading() === activeSection()">Siguiente</button>
+            </footer>
+          }
+        </section>
+      }
+    }
+  </main>
+</section>

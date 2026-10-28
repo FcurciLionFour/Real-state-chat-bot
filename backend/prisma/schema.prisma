@@ -1,0 +1,433 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  OWNER
+  ADMIN
+}
+
+enum AuthProvider {
+  PASSWORD
+  GOOGLE
+  FACEBOOK
+  APPLE
+}
+
+enum ConversationStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum OperationType {
+  BUY
+  RENT
+}
+
+enum CurrencyCode {
+  USD
+  ARS
+}
+
+enum PropertyType {
+  APARTMENT
+  HOUSE
+  PH
+  LAND
+  OFFICE
+  LOCAL
+  GARAGE
+}
+
+enum SearchRunStatus {
+  COMPLETED
+  PARTIAL
+  FAILED
+}
+
+enum ListingStatus {
+  ACTIVE
+  STALE
+  REMOVED
+  FETCH_FAILED
+}
+
+enum BlogArticleCategory {
+  COMPRA
+  ALQUILER
+  INVERSION
+  TIPS
+}
+
+enum BlogArticleStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  ARCHIVED
+}
+
+enum ScrapingSourceHealthStatus {
+  ACTIVE
+  DEGRADED
+  BLOCKED
+  EXPERIMENTAL
+}
+
+enum OwnerPropertyOperationType {
+  SALE
+  RENT
+}
+
+enum OwnerPropertyType {
+  APARTMENT
+  HOUSE
+  LAND
+  OFFICE
+  STORE
+}
+
+enum OwnerPropertyStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  PUBLISHED
+  UNPUBLISHED
+}
+
+model User {
+  id                      String                   @id @default(uuid())
+  email                   String                   @unique
+  passwordHash            String?
+  emailVerifiedAt         DateTime?
+  role                    UserRole                 @default(USER)
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+
+  authIdentities          AuthIdentity[]
+  emailVerificationTokens EmailVerificationToken[]
+  conversations           Conversation[]
+  refreshTokens           RefreshToken[]
+  favorites               Favorite[]
+  blogArticles            BlogArticle[]
+  ownerProperties         OwnerProperty[]
+}
+
+model RefreshToken {
+  id          String   @id @default(uuid())
+  userId      String
+  tokenHash   String   @unique
+  deviceLabel String?
+  userAgent   String?
+  ipAddress   String?
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model AuthIdentity {
+  id             String       @id @default(uuid())
+  userId         String
+  provider       AuthProvider
+  providerUserId String
+  providerEmail  String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@index([userId])
+}
+
+model EmailVerificationToken {
+  id         String    @id @default(uuid())
+  userId     String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Conversation {
+  id           String             @id @default(uuid())
+  userId       String
+  title        String
+  status       ConversationStatus @default(ACTIVE)
+  lastSearchAt DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages    Message[]
+  searchState SearchState?
+  searchRuns  SearchRun[]
+
+  @@index([userId])
+  @@index([userId, updatedAt(sort: Desc)])
+}
+
+model Message {
+  id                    String      @id @default(uuid())
+  conversationId        String
+  role                  MessageRole
+  content               String
+  structuredPayloadJson Json?
+  createdAt             DateTime    @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([conversationId, createdAt(sort: Asc)])
+}
+
+model SearchState {
+  id             String   @id @default(uuid())
+  conversationId String   @unique
+  filtersJson    Json
+  version        Int      @default(1)
+  updatedAt      DateTime @updatedAt
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([updatedAt])
+}
+
+model SearchRun {
+  id                  String          @id @default(uuid())
+  conversationId      String
+  parentSearchRunId   String?
+  filtersSnapshotJson Json
+  queryText           String
+  requestedPage       Int             @default(1)
+  resultCount         Int             @default(0)
+  sourcesUsedJson     Json
+  status              SearchRunStatus
+  errorSummary        String?
+  createdAt           DateTime        @default(now())
+
+  conversation    Conversation       @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  parentSearchRun SearchRun?         @relation("SearchRunToSearchRun", fields: [parentSearchRunId], references: [id], onDelete: SetNull)
+  childSearchRuns SearchRun[]        @relation("SearchRunToSearchRun")
+  results         SearchRunProperty[]
+
+  @@index([conversationId])
+  @@index([conversationId, createdAt(sort: Desc)])
+  @@index([status])
+  @@index([parentSearchRunId])
+}
+
+model PropertyCache {
+  id                    String         @id @default(uuid())
+  source                String
+  externalId            String?
+  sourceUrl             String         @unique
+  canonicalHash         String
+  rawPayloadJson        Json
+  normalizedPayloadJson Json
+  title                 String
+  description           String?
+  publisher             String?
+  contactPhone          String?
+  contactWhatsApp       String?
+  country               String?
+  province              String?
+  city                  String?
+  neighborhood          String?
+  locationText          String?
+  latitude              Decimal?       @db.Decimal(10, 7)
+  longitude             Decimal?       @db.Decimal(10, 7)
+  geoPrecision          String?
+  geocodingProvider     String?
+  geocodedAt            DateTime?
+  operation             OperationType?
+  propertyType          PropertyType?
+  priceAmount           Decimal?       @db.Decimal(14, 2)
+  priceCurrency         CurrencyCode?
+  expensesAmount        Decimal?       @db.Decimal(14, 2)
+  rooms                 Decimal?       @db.Decimal(4, 1)
+  bedrooms              Int?
+  bathrooms             Int?
+  areaTotal             Decimal?       @db.Decimal(10, 2)
+  areaCovered           Decimal?       @db.Decimal(10, 2)
+  featuresJson          Json
+  imagesJson            Json
+  listingStatus         ListingStatus  @default(ACTIVE)
+  publishedAt           DateTime?
+  scrapedAt             DateTime
+  expiresAt             DateTime?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  searchRunProperties SearchRunProperty[]
+  favorites           Favorite[]
+  ownerProperties     OwnerProperty[]
+
+  @@index([canonicalHash])
+  @@index([source, externalId])
+  @@index([city, neighborhood])
+  @@index([latitude, longitude])
+  @@index([operation, propertyType])
+  @@index([priceCurrency, priceAmount])
+  @@index([scrapedAt(sort: Desc)])
+  @@index([listingStatus])
+}
+
+model OwnerProperty {
+  id                String                     @id @default(uuid())
+  ownerId           String
+  propertyCacheId   String?
+  sourceType        String                     @default("OWNER_SUBMITTED")
+  operationType     OwnerPropertyOperationType
+  propertyType      OwnerPropertyType
+  title             String
+  description       String
+  province          String
+  city              String
+  neighborhood      String?
+  address           String?
+  showExactAddress  Boolean                    @default(false)
+  currency          CurrencyCode
+  price             Decimal                    @db.Decimal(14, 2)
+  expenses          Decimal?                   @db.Decimal(14, 2)
+  acceptsCredit     Boolean                    @default(false)
+  rooms             Decimal?                   @db.Decimal(4, 1)
+  bedrooms          Int?
+  bathrooms         Int?
+  coveredAreaM2     Decimal?                   @db.Decimal(10, 2)
+  totalAreaM2       Decimal?                   @db.Decimal(10, 2)
+  floor             String?
+  age               Int?
+  features          Json
+  images            Json
+  mainImageUrl      String?
+  contactName       String
+  contactEmail      String
+  contactPhone      String?
+  contactWhatsapp   String?
+  status            OwnerPropertyStatus        @default(DRAFT)
+  rejectionReason   String?
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+  submittedAt       DateTime?
+  reviewedAt        DateTime?
+  publishedAt       DateTime?
+
+  owner         User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  propertyCache PropertyCache? @relation(fields: [propertyCacheId], references: [id], onDelete: SetNull)
+
+  @@index([ownerId, updatedAt(sort: Desc)])
+  @@index([status, submittedAt(sort: Desc)])
+  @@index([operationType, propertyType])
+  @@index([city, neighborhood])
+  @@index([propertyCacheId])
+}
+
+model SearchRunProperty {
+  id              String   @id @default(uuid())
+  searchRunId     String
+  propertyCacheId String
+  position        Int
+  rankScore       Decimal  @db.Decimal(10, 4)
+  rankReasonJson  Json
+  createdAt       DateTime @default(now())
+
+  searchRun     SearchRun     @relation(fields: [searchRunId], references: [id], onDelete: Cascade)
+  propertyCache PropertyCache @relation(fields: [propertyCacheId], references: [id], onDelete: Cascade)
+
+  @@unique([searchRunId, propertyCacheId])
+  @@unique([searchRunId, position])
+  @@index([propertyCacheId])
+}
+
+model Favorite {
+  id              String   @id @default(uuid())
+  userId          String
+  propertyCacheId String
+  createdAt       DateTime @default(now())
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  propertyCache PropertyCache @relation(fields: [propertyCacheId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, propertyCacheId])
+  @@index([userId])
+}
+
+model BlogArticle {
+  id                  String              @id @default(uuid())
+  authorId            String?
+  slug                String              @unique
+  title               String
+  excerpt             String
+  category            BlogArticleCategory
+  coverImageUrl       String?
+  contentJson         Json
+  status              BlogArticleStatus   @default(DRAFT)
+  readingMinutes      Int                 @default(1)
+  relatedSearchPrompt String?
+  seoTitle            String?
+  seoDescription      String?
+  publishedAt         DateTime?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([status, publishedAt(sort: Desc)])
+  @@index([category, status])
+  @@index([authorId])
+}
+
+model Lead {
+  id        String     @id @default(uuid())
+  name      String?
+  email     String?
+  phone     String?
+  message   String
+  source    String?
+  status    LeadStatus @default(NEW)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([status, createdAt(sort: Desc)])
+}
+
+model ScrapingSourceStatus {
+  id           String                     @id @default(uuid())
+  source       String                     @unique
+  status       ScrapingSourceHealthStatus
+  lastRunAt    DateTime?
+  resultsCount Int                        @default(0)
+  errorSummary String?
+  createdAt    DateTime                   @default(now())
+  updatedAt    DateTime                   @updatedAt
+
+  @@index([status])
+}

@@ -1,0 +1,661 @@
+<section class="workspace-shell">
+  <button
+    class="workspace-overlay"
+    type="button"
+    [class.workspace-overlay--visible]="sidebarOpen() || resultModalOpen()"
+    (click)="closeWorkspaceOverlays()"
+    aria-hidden="true"
+    tabindex="-1"
+  ></button>
+
+  <div
+    class="workspace-layout"
+    [class.workspace-layout--drawer-open]="resultModalOpen() && !!selectedResult()"
+    [class.workspace-layout--sidebar-collapsed]="sidebarCollapsed()"
+  >
+    <aside
+      class="workspace-sidebar"
+      [class.workspace-sidebar--open]="sidebarOpen()"
+      [class.workspace-sidebar--collapsed]="sidebarCollapsed()"
+    >
+      <div class="workspace-sidebar__brand">
+        <a routerLink="/" class="workspace-brand" title="Inicio">
+          <span class="workspace-brand__mark">
+            <lucide-icon name="house" [size]="16"></lucide-icon>
+          </span>
+          <span>
+            <strong>busca.ar</strong>
+            <small>beta</small>
+          </span>
+        </a>
+
+        <button
+          class="workspace-sidebar__collapse"
+          type="button"
+          (click)="toggleSidebarCollapsed()"
+          [attr.aria-label]="sidebarCollapsed() ? 'Expandir navegacion' : 'Colapsar navegacion'"
+          [title]="sidebarCollapsed() ? 'Expandir' : 'Colapsar'"
+        >
+          <lucide-icon [name]="sidebarCollapsed() ? 'panel-left-open' : 'panel-left-close'" [size]="16"></lucide-icon>
+        </button>
+      </div>
+
+      <button class="workspace-sidebar__new" type="button" (click)="createConversation()" [disabled]="creatingConversation()">
+        <lucide-icon class="workspace-sidebar__new-icon" name="plus" [size]="16"></lucide-icon>
+        <span class="workspace-sidebar__new-label">{{ creatingConversation() ? 'Creando...' : 'Nueva busqueda' }}</span>
+      </button>
+
+      <nav class="workspace-nav" aria-label="Navegacion principal">
+        <p class="workspace-label">Navegacion</p>
+
+        <a routerLink="/" class="workspace-nav__item" [class.is-active]="isRouteActive('/')" title="Inicio">
+          <lucide-icon class="workspace-nav__icon" name="house" [size]="15"></lucide-icon>
+          <span class="workspace-nav__label">Inicio</span>
+        </a>
+        <a routerLink="/app/chats" class="workspace-nav__item" [class.is-active]="isRouteActive('/app/chats')" title="Chats">
+          <lucide-icon class="workspace-nav__icon" name="messages-square" [size]="15"></lucide-icon>
+          <span class="workspace-nav__label">Chats</span>
+        </a>
+        <a routerLink="/app/map" class="workspace-nav__item" [class.is-active]="isRouteActive('/app/map')" title="Mapa">
+          <lucide-icon class="workspace-nav__icon" name="map" [size]="15"></lucide-icon>
+          <span class="workspace-nav__label">Mapa</span>
+        </a>
+        <a routerLink="/app/favorites" class="workspace-nav__item" [class.is-active]="isRouteActive('/app/favorites')" title="Favoritos">
+          <lucide-icon class="workspace-nav__icon" name="star" [size]="15"></lucide-icon>
+          <span class="workspace-nav__label">Favoritos</span>
+        </a>
+        <a routerLink="/blog" class="workspace-nav__item" [class.is-active]="isRouteActive('/blog')" title="Blog">
+          <lucide-icon class="workspace-nav__icon" name="book-open" [size]="15"></lucide-icon>
+          <span class="workspace-nav__label">Blog</span>
+        </a>
+        <a routerLink="/app/publish-property" class="workspace-nav__item" [class.is-active]="isRouteActive('/app/publish-property')" title="Publicar propiedad">
+          <lucide-icon class="workspace-nav__icon" name="building-2" [size]="15"></lucide-icon>
+          <span class="workspace-nav__label">Publicar propiedad</span>
+        </a>
+        <a routerLink="/app/my-properties" class="workspace-nav__item" [class.is-active]="isRouteActive('/app/my-properties')" title="Mis propiedades">
+          <lucide-icon class="workspace-nav__icon" name="layout-grid" [size]="15"></lucide-icon>
+          <span class="workspace-nav__label">Mis propiedades</span>
+        </a>
+        @if (authStore.user()?.role === 'ADMIN') {
+          <a routerLink="/app/admin" class="workspace-nav__item" [class.is-active]="isRouteActive('/app/admin')" title="Admin">
+            <lucide-icon class="workspace-nav__icon" name="settings" [size]="15"></lucide-icon>
+            <span class="workspace-nav__label">Admin</span>
+          </a>
+        }
+      </nav>
+
+      <section class="workspace-sidebar__section">
+        <p class="workspace-label">Conversaciones</p>
+
+        @if (loadingConversations()) {
+          <p class="muted">Cargando conversaciones...</p>
+        } @else if (conversations().length === 0) {
+          <div class="workspace-empty workspace-empty--sidebar">
+            <p class="workspace-empty__title">Todavia no hay historial.</p>
+            <p class="workspace-empty__copy">Crea una busqueda nueva y el agente va a guardar contexto y resultados.</p>
+          </div>
+        } @else {
+          <div class="conversation-list">
+            @for (conversation of conversations(); track trackConversation($index, conversation)) {
+              <article class="conversation-item" [class.conversation-item--active]="conversation.id === activeConversationId()">
+                <button class="conversation-item__main" type="button" (click)="openConversation(conversation.id)">
+                  <span class="conversation-item__icon">
+                    <lucide-icon name="message-square" [size]="15"></lucide-icon>
+                  </span>
+                  <span class="conversation-item__copy">
+                    <span class="conversation-item__title">{{ conversation.title }}</span>
+                    <span class="conversation-item__meta">{{ conversation.updatedAt | date: 'dd MMM' }}</span>
+                    <span class="conversation-item__summary">{{ getConversationPreviewSummary(conversation.id) }}</span>
+                  </span>
+                </button>
+              </article>
+            }
+          </div>
+        }
+      </section>
+
+      <footer class="workspace-sidebar__user">
+        <div class="workspace-user">
+          <span class="workspace-user__avatar">{{ getUserInitial() }}</span>
+          <div>
+            <strong>{{ authStore.user()?.email ?? 'Invitado' }}</strong>
+            <small>{{ authStore.user()?.role === 'ADMIN' ? 'Cuenta admin' : 'Cuenta activa' }}</small>
+          </div>
+        </div>
+        <button class="workspace-sidebar__new" type="button" (click)="logout()" title="Salir">
+          <lucide-icon name="log-out" [size]="15"></lucide-icon>
+          <span>Salir</span>
+        </button>
+      </footer>
+    </aside>
+
+    <section class="workspace-main">
+      <header class="workspace-main__header">
+        <button class="workspace-main__menu" type="button" (click)="toggleSidebar()" aria-label="Abrir conversaciones">
+          <lucide-icon name="menu" [size]="18"></lucide-icon>
+        </button>
+
+        <div class="assistant-header">
+          <div class="assistant-header__dot"></div>
+          <div>
+            <h1>Asistente inmobiliario</h1>
+            <p>Estoy aca para ayudarte a encontrar tu proximo hogar.</p>
+          </div>
+        </div>
+
+        @if (hasConversation()) {
+          <div class="assistant-header__meta">
+            <span>{{ messageCount() }} mensajes</span>
+            @if (activeConversation()?.lastSearchRun; as lastSearchRun) {
+              <span>{{ lastSearchRun.createdAt | date: 'HH:mm' }}</span>
+            }
+          </div>
+        }
+      </header>
+
+      <div class="workspace-main__body">
+        @if (error()) {
+          <div class="workspace-error" role="alert" aria-live="polite">
+            <strong>No pude completar la accion.</strong>
+            <span>{{ error() }}</span>
+          </div>
+        }
+
+        <div class="chat-thread" #chatThread>
+          @if (shouldShowStarterPrompts()) {
+            <div class="welcome-panel">
+              <section class="welcome-panel__hero">
+                <p class="workspace-label">ASISTENTE INMOBILIARIO</p>
+                <h2>Contame qué estás buscando y te ayudo a encontrarlo.</h2>
+                <p>
+                  Podés pedir zona, precio, ambientes o características. Voy refinando la búsqueda con cada mensaje.
+                </p>
+              </section>
+
+              <div class="starter-prompts">
+                @for (prompt of starterPrompts; track prompt.label) {
+                  <button class="starter-prompt" type="button" (click)="applyStarterPrompt(prompt.message)">
+                    <span class="starter-prompt__label">{{ prompt.label }}</span>
+                    <span class="starter-prompt__message">{{ prompt.message }}</span>
+                  </button>
+                }
+              </div>
+            </div>
+          }
+
+          @for (message of activeConversation()?.messages ?? []; track trackMessage($index, message)) {
+            <article class="message-row" [class.message-row--assistant]="message.role === 'ASSISTANT'">
+              @if (message.role === 'ASSISTANT') {
+                <span class="message-row__avatar">
+                  <lucide-icon name="house" [size]="15"></lucide-icon>
+                </span>
+              }
+
+              <div class="message-card" [class.message-card--assistant]="message.role === 'ASSISTANT'">
+                @if (message.content.trim()) {
+                  <p class="message-card__content" [innerHTML]="formatMessageContent(message.content, message.role)"></p>
+                }
+
+                <div class="message-card__meta">
+                  <span>{{ message.createdAt | date: 'HH:mm' }}</span>
+                </div>
+              </div>
+            </article>
+          }
+
+          @if (sendingMessage() && pendingWorkspaceAction() === 'message') {
+            <article class="message-row message-row--assistant message-row--typing" aria-live="polite" aria-label="El asistente esta escribiendo">
+              <span class="message-row__avatar">
+                <lucide-icon name="house" [size]="15"></lucide-icon>
+              </span>
+
+              <div class="message-card message-card--assistant message-card--typing">
+                <span class="typing-indicator" aria-hidden="true">
+                  <span class="dot"></span>
+                  <span class="dot"></span>
+                  <span class="dot"></span>
+                </span>
+              </div>
+            </article>
+          }
+
+          @if (clarificationQuestion()) {
+            <section class="workspace-state">
+              <p class="workspace-label">Hace falta afinar</p>
+              <h3>Antes de buscar, conviene cerrar un detalle.</h3>
+              <p>{{ clarificationQuestion() }}</p>
+            </section>
+          }
+
+          @if (hasConversation()) {
+            @if (!sendingMessage() && hasEmptySearchResults()) {
+              <section class="results-flow results-flow--empty">
+                <p class="workspace-empty__title">No encontramos propiedades reales para esos filtros.</p>
+                <p class="workspace-empty__copy">Proba ampliar zona, subir tope o relajar ambientes. No mostramos resultados simulados en busquedas live.</p>
+              </section>
+            } @else if (!sendingMessage() && resultCount() > 0) {
+              <section class="results-flow">
+                <div class="results-flow__toolbar">
+                  <div class="results-flow__chips">
+                    @for (filter of activeFilters(); track filter.label + filter.value) {
+                      <span class="chip chip--interactive">
+                        {{ filter.value }}
+                        <button
+                          class="filter-chip__action"
+                          type="button"
+                          [disabled]="sendingMessage()"
+                          (click)="clearFilter(filter.key); $event.stopPropagation()"
+                        >
+                          <lucide-icon name="x" [size]="12"></lucide-icon>
+                        </button>
+                      </span>
+                    }
+
+                    <button class="chip chip--action" type="button" (click)="toggleQuickFiltersPanel()">
+                      + Agregar filtro
+                    </button>
+                  </div>
+
+                  <div class="results-flow__controls">
+                    <label class="results-flow__sort">
+                      Ordenar por:
+                      <select>
+                        <option>Relevancia</option>
+                      </select>
+                    </label>
+
+                    <div class="results-flow__view-toggle">
+                      <button
+                        type="button"
+                        [class.is-active]="resultViewMode() === 'grid'"
+                        (click)="setResultViewMode('grid')"
+                        aria-label="Vista grilla"
+                      >
+                        <lucide-icon name="layout-grid" [size]="15"></lucide-icon>
+                      </button>
+                      <button
+                        type="button"
+                        [class.is-active]="resultViewMode() === 'list'"
+                        (click)="setResultViewMode('list')"
+                        aria-label="Vista lista"
+                      >
+                        <lucide-icon name="list" [size]="15"></lucide-icon>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="results-flow__headline">
+                  <div>
+                    <h3>{{ resultCount() }} propiedades encontradas</h3>
+                    <p>Mostrando opciones segun los filtros activos de la conversacion.</p>
+                  </div>
+                </div>
+
+                <div class="results-grid" [class.results-grid--list]="resultViewMode() === 'list'">
+                  @for (result of displayedResults(); track trackResult($index, result)) {
+                    <article
+                      class="result-card"
+                      [class.result-card--active]="result.propertyId === selectedResult()?.propertyId && resultModalOpen()"
+                      [attr.data-source]="getSourceHostLabel(result)"
+                      (click)="openResultModal(result.propertyId)"
+                    >
+                      <div class="result-card__media">
+                        @if (result.images[0]; as image) {
+                          <img [src]="image" [alt]="result.title" loading="lazy" />
+                        } @else {
+                          <div class="result-card__fallback">
+                            <span>{{ result.source }}</span>
+                          </div>
+                        }
+
+                        @if (result.rank.position > 0 && result.rank.position <= 3) {
+                          <span
+                            class="result-card__rank-badge"
+                            [class.result-card__rank-badge--top]="result.rank.position === 1"
+                            [class.result-card__rank-badge--secondary]="result.rank.position !== 1"
+                          >
+                            {{ result.rank.position === 1 ? 'Top match' : 'Top 3' }}
+                          </span>
+                        }
+
+                        <button
+                          class="result-card__favorite"
+                          type="button"
+                          [disabled]="isFavoriteBusy(result.propertyId)"
+                          (click)="toggleFavorite(result.propertyId); $event.stopPropagation()"
+                          [attr.aria-label]="isFavorite(result.propertyId) ? 'Quitar favorito' : 'Guardar favorito'"
+                        >
+                          <lucide-icon name="heart" [size]="15" [class.is-filled]="isFavorite(result.propertyId)"></lucide-icon>
+                        </button>
+
+                        <span class="result-card__source-badge">{{ getSourceBadgeLabel(result) }}</span>
+                      </div>
+
+                      <div class="result-card__body">
+                        <p class="result-card__price" [class.result-card__price--missing]="result.price === null || !result.currency">
+                          {{ formatPrice(result) }}
+                          @if (result.operation === 'RENT' && result.price !== null && result.currency) {
+                            <span>/mes</span>
+                          }
+                        </p>
+
+                        <p class="result-card__location">{{ buildResultCardLocation(result) }}</p>
+
+                        <p class="result-card__facts">
+                          {{ buildResultMetricsLine(result) }}
+                        </p>
+
+                        @if (result.features.length > 0) {
+                          <div class="result-card__chips">
+                            @for (feature of result.features.slice(0, 2); track feature) {
+                              <span class="chip chip--soft">{{ formatFeatureLabel(feature) }}</span>
+                            }
+                          </div>
+                        }
+                      </div>
+                    </article>
+                  }
+                </div>
+
+                <div class="results-flow__footer">
+                  @if (hasMoreVisibleResults()) {
+                    <button class="results-flow__more" type="button" (click)="loadMoreResults()">
+                      Cargar mas resultados
+                    </button>
+                  }
+
+                  <p>Mostrando {{ displayedResults().length }} de {{ resultCount() }} resultados</p>
+                </div>
+
+                <div class="results-flow__quick-actions">
+                  <button class="result-pill-action" type="button" (click)="openMapView()">
+                    Ver en el mapa
+                  </button>
+                  <button class="result-pill-action" type="button" (click)="applyFilterAction('Guarda esta busqueda actual para retomarla despues.')">
+                    Guardar busqueda
+                  </button>
+                  <button class="result-pill-action" type="button" (click)="toggleQuickFiltersPanel()">
+                    Ajustar presupuesto
+                  </button>
+                </div>
+              </section>
+            }
+          }
+
+          @if (loadingConversation()) {
+            <div class="chat-loading">
+              <p class="muted">Cargando conversacion...</p>
+            </div>
+          }
+        </div>
+
+        @if (hasConversation()) {
+          <button
+            class="composer-panel-backdrop"
+            type="button"
+            [class.composer-panel-backdrop--open]="quickFiltersPanelOpen()"
+            tabindex="-1"
+            (click)="closeQuickFiltersPanel()"
+          ></button>
+
+          <section
+            class="composer-panel"
+            [class.composer-panel--open]="quickFiltersPanelOpen()"
+            aria-label="Configuracion avanzada de filtros"
+          >
+            <div class="composer-panel__header">
+              <div>
+                <p class="workspace-label">Editor rapido</p>
+                <h3>Ajustes del search state</h3>
+              </div>
+              <button class="result-action" type="button" [disabled]="sendingMessage()" (click)="closeQuickFiltersPanel()">
+                Cerrar
+              </button>
+            </div>
+
+            @if (activeFilters().length === 0) {
+              <p class="muted">Todavia no hay filtros confirmados para esta conversacion.</p>
+            } @else {
+              <div class="results-flow__chips">
+                @for (filter of activeFilters(); track filter.label + filter.value) {
+                  <span class="chip">
+                    <strong>{{ filter.label }}:</strong>
+                    {{ filter.value }}
+                    <button class="filter-chip__action" type="button" [disabled]="sendingMessage()" (click)="clearFilter(filter.key)">
+                      Quitar
+                    </button>
+                  </span>
+                }
+              </div>
+            }
+
+            <div class="quick-edit-grid">
+              <label class="quick-edit-field">
+                <span>Operacion</span>
+                <select [ngModel]="quickOperationDraft()" (ngModelChange)="updateQuickOperationDraft($event)" name="quickOperation">
+                  <option value="">Mantener</option>
+                  @for (option of quickOperationOptions; track option.value) {
+                    <option [value]="option.value">{{ option.label }}</option>
+                  }
+                </select>
+              </label>
+
+              <label class="quick-edit-field">
+                <span>Tipo</span>
+                <select [ngModel]="quickPropertyTypeDraft()" (ngModelChange)="updateQuickPropertyTypeDraft($event)" name="quickPropertyType">
+                  <option value="">Mantener</option>
+                  @for (option of quickPropertyTypeOptions; track option.value) {
+                    <option [value]="option.value">{{ option.label }}</option>
+                  }
+                </select>
+              </label>
+
+              <label class="quick-edit-field">
+                <span>Moneda</span>
+                <select [ngModel]="quickCurrencyDraft()" (ngModelChange)="updateQuickCurrencyDraft($event)" name="quickCurrency">
+                  <option value="">Mantener</option>
+                  @for (option of quickCurrencyOptions; track option.value) {
+                    <option [value]="option.value">{{ option.label }}</option>
+                  }
+                </select>
+              </label>
+
+              <label class="quick-edit-field">
+                <span>Ambientes</span>
+                <input [ngModel]="quickRoomsDraft()" (ngModelChange)="updateQuickRoomsDraft($event)" name="quickRooms" inputmode="numeric" placeholder="Ej: 2" />
+              </label>
+
+              <label class="quick-edit-field">
+                <span>Dormitorios</span>
+                <input [ngModel]="quickBedroomsDraft()" (ngModelChange)="updateQuickBedroomsDraft($event)" name="quickBedrooms" inputmode="numeric" placeholder="Ej: 1" />
+              </label>
+
+              <label class="quick-edit-field">
+                <span>Banos</span>
+                <input [ngModel]="quickBathroomsDraft()" (ngModelChange)="updateQuickBathroomsDraft($event)" name="quickBathrooms" inputmode="numeric" placeholder="Ej: 1" />
+              </label>
+
+              <label class="quick-edit-field">
+                <span>Ubicacion</span>
+                <input [ngModel]="quickLocationDraft()" (ngModelChange)="updateQuickLocationDraft($event)" name="quickLocation" placeholder="Ej: Palermo" />
+              </label>
+
+              <label class="quick-edit-field">
+                <span>Tope</span>
+                <input [ngModel]="quickPriceMaxDraft()" (ngModelChange)="updateQuickPriceMaxDraft($event)" name="quickPriceMax" inputmode="numeric" placeholder="Ej: 140000" />
+              </label>
+            </div>
+
+            <div class="workspace-actions">
+              <button class="result-action" type="button" [disabled]="sendingMessage()" (click)="applyQuickBasics()">Aplicar base</button>
+              <button class="result-action" type="button" [disabled]="sendingMessage()" (click)="applyQuickLayout()">Aplicar ambientes</button>
+              <button class="result-action" type="button" [disabled]="sendingMessage()" (click)="applyQuickLocation()">Aplicar ubicacion</button>
+              <button class="result-action" type="button" [disabled]="sendingMessage()" (click)="applyQuickPriceMax()">Aplicar tope</button>
+              <button class="result-action" type="button" (click)="askForMoreResults()">Ver mas</button>
+              <button class="result-action" type="button" [disabled]="sendingMessage()" (click)="resetSearchState()">Reiniciar</button>
+            </div>
+          </section>
+        }
+
+        <form class="workspace-composer" (ngSubmit)="sendMessage()">
+          <div class="workspace-composer__box">
+            <textarea
+              #composerInput
+              [ngModel]="draftMessage()"
+              (ngModelChange)="updateDraft($event)"
+              (keydown)="handleComposerKeydown($event)"
+              name="message"
+              rows="1"
+              placeholder="Escribi tu mensaje..."
+              required
+            ></textarea>
+
+            <div class="workspace-composer__footer">
+              <p class="workspace-composer__hint">Podes preguntar por zonas, precios, caracteristicas, comparar propiedades y mas.</p>
+
+              <div class="workspace-composer__actions">
+                <button class="workspace-composer__mic" type="button" aria-label="Grabar audio">
+                  <lucide-icon name="mic" [size]="17"></lucide-icon>
+                </button>
+                <button
+                  class="workspace-composer__submit"
+                  type="submit"
+                  [disabled]="sendingMessage()"
+                  [attr.aria-label]="sendingMessage() ? 'Enviando mensaje' : 'Enviar mensaje'"
+                >
+                  @if (sendingMessage()) {
+                    ...
+                  } @else {
+                    <lucide-icon name="send" [size]="16"></lucide-icon>
+                  }
+                </button>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    @if (resultModalOpen() && selectedResult(); as result) {
+      <aside class="property-drawer">
+        <header
+          class="property-drawer__header"
+          (touchstart)="beginResultSheetGesture($event)"
+          (touchend)="endResultSheetGesture($event)"
+        >
+          <span class="property-drawer__handle" aria-hidden="true"></span>
+          <div>
+            @if (buildResultBadges(result)[0]; as primaryBadge) {
+              <span class="property-drawer__badge">{{ primaryBadge }}</span>
+            }
+            <h3>{{ buildDrawerAddressLine(result) }}</h3>
+            <p class="property-drawer__price">{{ formatPrice(result) }}</p>
+            <p class="property-drawer__location">{{ buildDrawerNeighborhoodLine(result) }}</p>
+            <p class="property-drawer__summary">{{ buildResultMetricsLine(result) }}</p>
+          </div>
+
+          <div class="property-drawer__header-actions">
+            <button class="result-action" type="button" (click)="toggleFavorite(result.propertyId)">
+              {{ isFavorite(result.propertyId) ? 'Guardado' : 'Guardar' }}
+            </button>
+            <button class="property-drawer__close" type="button" (click)="closeResultModal()" aria-label="Cerrar detalle">
+              <lucide-icon name="x" [size]="16"></lucide-icon>
+            </button>
+          </div>
+        </header>
+
+        <div class="property-drawer__scroll">
+          <section class="property-drawer__gallery">
+            @if (selectedResultImage(); as image) {
+              <div class="property-drawer__hero">
+                <img [src]="image" [alt]="result.title" loading="lazy" />
+                @if (selectedResultImages().length > 1) {
+                  <button class="property-drawer__nav property-drawer__nav--prev" type="button" (click)="showPreviousResultImage()">
+                    <lucide-icon name="chevron-left" [size]="18"></lucide-icon>
+                  </button>
+                  <button class="property-drawer__nav property-drawer__nav--next" type="button" (click)="showNextResultImage()">
+                    <lucide-icon name="chevron-right" [size]="18"></lucide-icon>
+                  </button>
+                }
+                <span class="property-drawer__count">{{ selectedImageIndex() + 1 }}/{{ selectedResultImages().length || 1 }}</span>
+              </div>
+            }
+
+            @if (selectedResultImages().length > 1) {
+              <div class="property-drawer__thumbs">
+                @for (image of selectedResultImages().slice(0, 5); track image; let imageIndex = $index) {
+                  <button
+                    class="property-drawer__thumb"
+                    type="button"
+                    [class.property-drawer__thumb--active]="imageIndex === selectedImageIndex()"
+                    (click)="selectResultImage(imageIndex)"
+                  >
+                    <img [src]="image" [alt]="result.title + ' imagen ' + (imageIndex + 1)" loading="lazy" />
+                  </button>
+                }
+
+                @if (selectedResultImages().length > 5) {
+                  <button class="property-drawer__thumb property-drawer__thumb--more" type="button">
+                    Ver todas ({{ selectedResultImages().length }})
+                  </button>
+                }
+              </div>
+            }
+          </section>
+
+          <section class="property-drawer__facts">
+            @for (fact of buildDrawerFacts(result); track fact.label) {
+              <div class="drawer-fact">
+                <strong>{{ fact.value }}</strong>
+                <span>{{ fact.label }}</span>
+              </div>
+            }
+          </section>
+
+          @if (buildResultDescription(result); as description) {
+            <section class="property-drawer__section">
+              <h4>Descripcion</h4>
+              <p>{{ description }}</p>
+            </section>
+          }
+
+          <section class="property-drawer__section">
+            <h4>Caracteristicas</h4>
+            <div class="property-drawer__feature-grid">
+              @for (feature of buildDrawerFeatureList(result); track feature) {
+                <span>{{ feature }}</span>
+              }
+            </div>
+          </section>
+
+          <section class="property-drawer__section">
+            <h4>Ubicacion</h4>
+            <div class="property-drawer__map">
+              <div>
+                <p>{{ buildResultLocation(result) }}</p>
+                <span>{{ buildResultMetricsLine(result) }}</span>
+              </div>
+              <div class="property-drawer__map-actions">
+                <button class="result-action result-action--wide" type="button" (click)="openMapView([result])">Abrir mapa</button>
+                <a class="result-action result-action--wide" [href]="buildMapHref(result)" target="_blank" rel="noreferrer">Google Maps</a>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <footer class="property-drawer__footer">
+          <button class="result-action result-action--wide" type="button" (click)="toggleCompareResult(result.propertyId)">
+            {{ isCompareSelected(result.propertyId) ? 'En comparacion' : 'Comparar' }}
+          </button>
+          <a class="result-action result-action--wide" [href]="result.sourceUrl" target="_blank" rel="noreferrer">
+            Abrir publicacion original
+          </a>
+          <a class="property-drawer__cta" [href]="buildContactHref(result)" target="_blank" rel="noreferrer">
+            {{ buildContactLabel(result) }}
+          </a>
+        </footer>
+      </aside>
+    }
+  </div>
+</section>

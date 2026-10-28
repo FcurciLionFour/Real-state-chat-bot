@@ -1,0 +1,1 @@
+"""Argenprop source adapter."""

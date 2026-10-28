@@ -1,0 +1,38 @@
+<section class="auth-shell">
+  <section class="auth-card">
+    <div class="auth-card__header">
+      <h1>Crear cuenta</h1>
+      <p>Completa tus datos para empezar</p>
+    </div>
+
+    <form class="auth-form" (ngSubmit)="submit()">
+      <label>
+        <span>Email</span>
+        <input [(ngModel)]="email" name="email" type="email" required autocomplete="email" placeholder="tu@email.com" />
+      </label>
+
+      <label>
+        <span>Contrasena</span>
+        <input [(ngModel)]="password" name="password" type="password" required autocomplete="new-password" placeholder="••••••••" />
+      </label>
+
+      <label>
+        <span>Repetir contrasena</span>
+        <input [(ngModel)]="confirmPassword" name="confirmPassword" type="password" required autocomplete="new-password" placeholder="••••••••" />
+      </label>
+
+      @if (error) {
+        <p class="error">{{ error }}</p>
+      }
+
+      <button class="auth-submit" type="submit" [disabled]="loading">
+        {{ loading ? 'Creando cuenta...' : 'Crear cuenta' }}
+      </button>
+
+      <p class="auth-form__footer">
+        Ya tenes cuenta?
+        <a routerLink="/login">Ingresa</a>
+      </p>
+    </form>
+  </section>
+</section>

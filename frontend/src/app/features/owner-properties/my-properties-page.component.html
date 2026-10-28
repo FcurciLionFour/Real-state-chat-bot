@@ -1,0 +1,88 @@
+<section class="owner-workspace">
+  <app-sidebar activeSection="properties" />
+
+  <main class="owner-main">
+    <header class="owner-header">
+      <div>
+        <h1>Mis propiedades</h1>
+        <p>Gestiona tus propiedades publicadas o en proceso.</p>
+      </div>
+      <a routerLink="/app/publish-property" class="owner-primary">Publicar nueva propiedad</a>
+    </header>
+
+    @if (!canPublish) {
+      <section class="owner-empty">
+        <h2>Para publicar tu propiedad necesitamos validar tu cuenta.</h2>
+        <p>Solicita validacion desde la pantalla de publicacion para convertir tu cuenta en owner.</p>
+        <a routerLink="/app/publish-property" class="owner-primary">Solicitar validacion</a>
+      </section>
+    } @else {
+      @if (error()) {
+        <p class="owner-banner owner-banner--error">{{ error() }}</p>
+      }
+
+      <section class="owner-filters">
+        @for (filter of [
+          { value: 'ALL', label: 'Todas' },
+          { value: 'DRAFT', label: 'Borradores' },
+          { value: 'PENDING_REVIEW', label: 'En revision' },
+          { value: 'PUBLISHED', label: 'Publicadas' },
+          { value: 'REJECTED', label: 'Rechazadas' },
+          { value: 'UNPUBLISHED', label: 'Despublicadas' }
+        ]; track filter.value) {
+          <button type="button" [class.is-active]="statusFilter() === filter.value" (click)="setStatusFilter($any(filter.value))">
+            {{ filter.label }} <span>{{ statusCount($any(filter.value)) }}</span>
+          </button>
+        }
+      </section>
+
+      @if (loading()) {
+        <section class="owner-empty">Cargando propiedades...</section>
+      } @else if (filteredProperties().length === 0) {
+        <section class="owner-empty">
+          <h2>Todavia no hay propiedades en esta vista.</h2>
+          <p>Crea un borrador para cargar datos, imagenes y enviarlo a revision.</p>
+          <a routerLink="/app/publish-property" class="owner-primary">Comenzar publicacion</a>
+        </section>
+      } @else {
+        <div class="properties-grid">
+          @for (property of filteredProperties(); track trackProperty($index, property)) {
+            <article class="property-card">
+              <div class="property-card__media">
+                @if (property.mainImageUrl || property.images[0]; as image) {
+                  <img [src]="image" [alt]="property.title" loading="lazy" />
+                } @else {
+                  <div class="property-card__placeholder">Sin imagen</div>
+                }
+                <span [class]="'status-pill status-pill--' + property.status.toLowerCase()">{{ statusLabel(property.status) }}</span>
+              </div>
+              <div class="property-card__body">
+                <h2>{{ property.title }}</h2>
+                <p>{{ formatLocation(property) }}</p>
+                <strong>{{ formatPrice(property) }}</strong>
+                <small>{{ property.updatedAt | date: 'dd MMM yyyy' }}</small>
+                @if (property.rejectionReason) {
+                  <p class="property-card__reason">{{ property.rejectionReason }}</p>
+                }
+              </div>
+              <footer class="property-card__actions">
+                @if (canEdit(property)) {
+                  <a [routerLink]="['/app/my-properties', property.id, 'edit']">Editar</a>
+                }
+                @if (canSubmit(property)) {
+                  <button type="button" (click)="submit(property)" [disabled]="busyId() === property.id">Enviar</button>
+                }
+                @if (canUnpublish(property)) {
+                  <button type="button" (click)="unpublish(property)" [disabled]="busyId() === property.id">Despublicar</button>
+                }
+                @if (canDelete(property)) {
+                  <button type="button" (click)="deleteDraft(property)" [disabled]="busyId() === property.id">Eliminar</button>
+                }
+              </footer>
+            </article>
+          }
+        </div>
+      }
+    }
+  </main>
+</section>

@@ -1,0 +1,30 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const core_1 = require("@nestjs/core");
+const config_1 = require("@nestjs/config");
+const app_module_1 = require("./app.module");
+const configure_app_1 = require("./bootstrap/configure-app");
+const logger_service_1 = require("./infrastructure/observability/logger.service");
+const request_context_service_1 = require("./infrastructure/observability/request-context.service");
+async function bootstrap() {
+    const app = await core_1.NestFactory.create(app_module_1.AppModule, { bufferLogs: true });
+    const configService = app.get(config_1.ConfigService);
+    const logger = app.get(logger_service_1.LoggerService);
+    const requestContextService = app.get(request_context_service_1.RequestContextService);
+    const port = configService.get('app.port', 3000);
+    const frontendUrl = configService.get('app.frontendUrl', 'http://localhost:4200');
+    const environment = configService.get('app.environment', 'development');
+    const trustProxy = configService.get('app.trustProxy', false);
+    const openAiMode = configService.get('openai.apiKey', '') ? 'real-api' : 'safe-fallback';
+    const refreshCookieSecure = configService.get('auth.refreshCookie.secure', false);
+    const refreshCookieSameSite = configService.get('auth.refreshCookie.sameSite', 'lax');
+    (0, configure_app_1.configureApp)(app, configService, logger, requestContextService);
+    await app.listen(port);
+    logger.log(`Backend listening on http://localhost:${port}/api`, 'Bootstrap');
+    logger.log(`Environment: ${environment}`, 'Bootstrap');
+    logger.log(`Frontend origin: ${frontendUrl}`, 'Bootstrap');
+    logger.log(`Trust proxy: ${trustProxy ? 'enabled' : 'disabled'}`, 'Bootstrap');
+    logger.log(`Refresh cookie policy: secure=${refreshCookieSecure}, sameSite=${refreshCookieSameSite}`, 'Bootstrap');
+    logger.log(`OpenAI mode: ${openAiMode}`, 'Bootstrap');
+}
+void bootstrap();

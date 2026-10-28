@@ -1,0 +1,185 @@
+<section class="favorites-workspace">
+  <app-sidebar activeSection="favorites" />
+
+  <main class="favorites-main">
+    @if (error()) {
+      <p class="favorites-error">{{ error() }}</p>
+    }
+
+    <header class="favorites-header">
+      <div>
+        <p class="favorites-kicker">Coleccion personal</p>
+        <h1>{{ isCompareRoute() ? 'Comparador' : 'Tus favoritos' }}</h1>
+        <p>
+          {{
+            isCompareRoute()
+              ? 'Selecciona dos propiedades guardadas y revisa diferencias clave sin tabla horizontal.'
+              : 'Propiedades guardadas para revisar, comparar y reusar como punto de partida.'
+          }}
+        </p>
+      </div>
+
+      <div class="favorites-header__actions">
+        <label class="favorites-search">
+          <span>⌕</span>
+          <input
+            type="search"
+            [value]="searchTerm()"
+            placeholder="Buscar en favoritos"
+            (input)="updateSearchTerm($event)"
+          />
+        </label>
+        <button class="favorites-primary" type="button" (click)="openSearch()">Nueva busqueda</button>
+      </div>
+    </header>
+
+    @if (loading()) {
+      <p class="muted">Cargando favoritos...</p>
+    } @else if (favorites().length === 0) {
+      <section class="favorites-empty">
+        <h2>Todavia no guardaste propiedades.</h2>
+        <p>Cuando marques resultados como favoritos, vas a poder revisarlos y compararlos desde aca.</p>
+        <button class="favorites-primary" type="button" (click)="openSearch()">Ir al buscador</button>
+      </section>
+    } @else {
+      <section class="favorites-filters">
+        <div class="favorites-pills">
+          <button type="button" [class.is-active]="operationFilter() === 'ALL'" (click)="setOperationFilter('ALL')">Todos</button>
+          <button type="button" [class.is-active]="operationFilter() === 'BUY'" (click)="setOperationFilter('BUY')">Compra</button>
+          <button type="button" [class.is-active]="operationFilter() === 'RENT'" (click)="setOperationFilter('RENT')">Alquiler</button>
+        </div>
+
+        <label>
+          Tipo
+          <select [value]="propertyTypeFilter()" (change)="setPropertyTypeFilter($event)">
+            <option value="ALL">Todos</option>
+            @for (propertyType of propertyTypeOptions(); track propertyType.value) {
+              <option [value]="propertyType.value">{{ propertyType.label }}</option>
+            }
+          </select>
+        </label>
+
+        <label>
+          Orden
+          <select [value]="sortOption()" (change)="setSortOption($event)">
+            <option value="RECENT">Mas recientes</option>
+            <option value="PRICE_ASC">Menor precio</option>
+            <option value="PRICE_DESC">Mayor precio</option>
+            <option value="LOCATION">Barrio A-Z</option>
+          </select>
+        </label>
+      </section>
+
+      <div class="favorites-meta">
+        <strong>{{ filteredFavorites().length }} propiedades guardadas</strong>
+        @if (compareSelection().length > 0) {
+          <button type="button" (click)="clearComparison()">Limpiar seleccion ({{ compareSelection().length }})</button>
+        }
+      </div>
+
+      @if (isCompareRoute() || compareSelection().length > 0) {
+        <section class="compare-panel" aria-label="Comparador de favoritos">
+          <header class="compare-panel__header">
+            <div>
+              <p class="favorites-kicker">Comparacion</p>
+              <h2>{{ compareFavorites().length === 2 ? 'Lectura entre dos propiedades' : 'Selecciona dos favoritos' }}</h2>
+            </div>
+            <div class="compare-panel__actions">
+              <button type="button" [disabled]="compareFavorites().length !== 2" (click)="prepareComparisonSearch()">Preparar busqueda</button>
+              <button type="button" [disabled]="compareFavorites().length !== 2" (click)="searchFromComparisonNow()">Buscar similares</button>
+            </div>
+          </header>
+
+          <div class="compare-panel__selected">
+            @for (favorite of compareFavorites(); track favorite.favoriteId) {
+              <article>
+                @if (favorite.property.images[0]) {
+                  <img [src]="favorite.property.images[0]" [alt]="favorite.property.title" loading="lazy" />
+                }
+                <strong>{{ trimTitle(favorite.property.title) }}</strong>
+                <span>{{ formatPrice(favorite) }}</span>
+              </article>
+            } @empty {
+              <p>Marca dos cards con "Comparar" para armar la lectura.</p>
+            }
+          </div>
+
+          <div class="compare-panel__facts">
+            @for (insight of buildComparisonInsights(compareFavorites()); track insight) {
+              <p>{{ insight }}</p>
+            }
+          </div>
+
+          @if (compareFavorites().length === 2) {
+            <div class="compare-panel__rows">
+              <section>
+                <h3>Precio</h3>
+                @for (favorite of compareFavorites(); track favorite.favoriteId) {
+                  <p><strong>{{ trimTitle(favorite.property.title) }}</strong><span>{{ formatPrice(favorite) }}</span></p>
+                }
+              </section>
+              <section>
+                <h3>Ubicacion</h3>
+                @for (favorite of compareFavorites(); track favorite.favoriteId) {
+                  <p><strong>{{ trimTitle(favorite.property.title) }}</strong><span>{{ formatLocation(favorite) }}</span></p>
+                }
+              </section>
+              <section>
+                <h3>Ambientes y superficie</h3>
+                @for (favorite of compareFavorites(); track favorite.favoriteId) {
+                  <p><strong>{{ trimTitle(favorite.property.title) }}</strong><span>{{ buildMetricsLine(favorite) }}</span></p>
+                }
+              </section>
+            </div>
+          }
+        </section>
+      }
+
+      @if (filteredFavorites().length === 0) {
+        <section class="favorites-empty">
+          <h2>No hay favoritos que coincidan.</h2>
+          <p>Proba cambiar filtros o limpiar la busqueda.</p>
+        </section>
+      } @else {
+        <div class="favorites-grid">
+          @for (favorite of filteredFavorites(); track trackFavorite($index, favorite)) {
+            <article class="favorite-card" [class.is-selected]="isCompareSelected(favorite.property.propertyId)">
+              <div class="favorite-card__media">
+                @if (favorite.property.images[0]) {
+                  <img [src]="favorite.property.images[0]" [alt]="favorite.property.title" loading="lazy" />
+                } @else {
+                  <div class="favorite-card__placeholder">Sin imagen</div>
+                }
+                <span class="favorite-card__type">{{ formatPropertyTypeLabel(favorite.property.propertyType) }}</span>
+                <button
+                  class="favorite-card__saved"
+                  type="button"
+                  [disabled]="isBusy(favorite.property.propertyId)"
+                  (click)="removeFavorite(favorite.property.propertyId)"
+                  aria-label="Quitar favorito"
+                >
+                  {{ isBusy(favorite.property.propertyId) ? '...' : '♡' }}
+                </button>
+              </div>
+
+              <div class="favorite-card__body">
+                <h2>{{ favorite.property.title }}</h2>
+                <p class="favorite-card__location">{{ formatLocation(favorite) }}</p>
+                <p class="favorite-card__facts">{{ buildMetricsLine(favorite) }}</p>
+                <p class="favorite-card__price">{{ formatPrice(favorite) }}</p>
+
+                <div class="favorite-card__actions">
+                  <a [href]="favorite.property.sourceUrl" target="_blank" rel="noreferrer">Ver detalle</a>
+                  <button type="button" [class.is-active]="isCompareSelected(favorite.property.propertyId)" (click)="toggleCompare(favorite.property.propertyId)">
+                    Comparar
+                  </button>
+                  <button type="button" (click)="searchSimilarNow(favorite)">Similar</button>
+                </div>
+              </div>
+            </article>
+          }
+        </div>
+      }
+    }
+  </main>
+</section>

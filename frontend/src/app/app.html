@@ -1,0 +1,84 @@
+<div class="app-shell" [class.app-shell--workspace]="isWorkspaceRoute()">
+  @if (!isWorkspaceRoute()) {
+    <header class="app-header" [class.app-header--home]="isHomeRoute()" [class.app-header--auth]="isAuthRoute()">
+      <a routerLink="/" class="brand" [class.brand--workspace]="isHomeRoute() || isAuthRoute()">
+        <span class="brand__mark">{{ isHomeRoute() || isAuthRoute() ? '⌂' : 'RS' }}</span>
+        <span>
+          <strong>{{ isHomeRoute() || isAuthRoute() ? 'busca.ar' : 'Real State Chat Bot' }}</strong>
+          <small>{{ isHomeRoute() || isAuthRoute() ? 'Asistente inmobiliario' : 'Busqueda conversacional' }}</small>
+        </span>
+      </a>
+
+      @if (!isAuthRoute() && !isHomeRoute()) {
+        <nav class="nav">
+          <a routerLink="/" routerLinkActive="nav__link--active" [routerLinkActiveOptions]="{ exact: true }" class="nav__link">
+            Inicio
+          </a>
+
+          @if (authStore.isAuthenticated()) {
+            <a routerLink="/search" routerLinkActive="nav__link--active" class="nav__link">Buscar</a>
+            <a routerLink="/app/chats" routerLinkActive="nav__link--active" class="nav__link">Chats</a>
+            <a routerLink="/app/favorites" routerLinkActive="nav__link--active" class="nav__link">Favoritos</a>
+            <a routerLink="/app/publish-property" routerLinkActive="nav__link--active" class="nav__link">Publicar propiedad</a>
+            <a routerLink="/app/my-properties" routerLinkActive="nav__link--active" class="nav__link">Mis propiedades</a>
+            @if (isAdmin()) {
+              <a routerLink="/app/admin" routerLinkActive="nav__link--active" class="nav__link">Admin</a>
+            }
+          } @else {
+            <a routerLink="/login" routerLinkActive="nav__link--active" class="nav__link">Login</a>
+            <a routerLink="/register" routerLinkActive="nav__link--active" class="nav__link">Registro</a>
+          }
+        </nav>
+      }
+
+      <div class="header-user">
+        @if (isHomeRoute()) {
+          <a routerLink="/blog" class="btn btn--ghost btn--small">Blog</a>
+          <a routerLink="/login" class="btn btn--ghost btn--small">Iniciar sesion</a>
+          <a routerLink="/register" class="btn btn--primary btn--small">Registrate</a>
+        } @else if (isAuthRoute()) {
+          <a routerLink="/" class="btn btn--ghost btn--small">Inicio</a>
+          @if (isLoginRoute()) {
+            <a routerLink="/register" class="btn btn--primary btn--small">Registrate</a>
+          } @else {
+            <a routerLink="/login" class="btn btn--primary btn--small">Iniciar sesion</a>
+          }
+        } @else if (authStore.user(); as user) {
+          <span class="header-user__email">{{ user.email }}</span>
+          <button class="btn btn--ghost btn--small" type="button" (click)="logout()">Salir</button>
+        } @else {
+          <a routerLink="/register" class="btn btn--primary btn--small">{{ isAuthRoute() ? 'Empezar' : 'Crear cuenta' }}</a>
+        }
+      </div>
+    </header>
+  }
+
+  <main class="app-main" [class.app-main--workspace]="isWorkspaceRoute()">
+    <router-outlet />
+  </main>
+
+  @if (isWorkspaceRoute() && authStore.isAuthenticated()) {
+    <nav class="mobile-bottom-nav" aria-label="Navegacion mobile principal">
+      <a routerLink="/app/chats" routerLinkActive="is-active" class="mobile-bottom-nav__item">
+        <lucide-icon name="search" [size]="20"></lucide-icon>
+        <span>Buscar</span>
+      </a>
+      <a routerLink="/app/map" routerLinkActive="is-active" class="mobile-bottom-nav__item">
+        <lucide-icon name="map" [size]="20"></lucide-icon>
+        <span>Mapa</span>
+      </a>
+      <a routerLink="/app/favorites" routerLinkActive="is-active" class="mobile-bottom-nav__item">
+        <lucide-icon name="heart" [size]="20"></lucide-icon>
+        <span>Favoritos</span>
+      </a>
+      <a routerLink="/app/compare" routerLinkActive="is-active" class="mobile-bottom-nav__item">
+        <lucide-icon name="scale" [size]="20"></lucide-icon>
+        <span>Comparar</span>
+      </a>
+      <a routerLink="/app/profile" routerLinkActive="is-active" class="mobile-bottom-nav__item">
+        <lucide-icon name="user" [size]="20"></lucide-icon>
+        <span>Perfil</span>
+      </a>
+    </nav>
+  }
+</div>

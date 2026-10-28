@@ -1,0 +1,229 @@
+<section class="owner-workspace">
+  <app-sidebar activeSection="publish" />
+
+  <main class="owner-main">
+    @if (!canPublish) {
+      <section class="validation-panel">
+        <div class="validation-panel__hero">
+          <span class="validation-panel__eyebrow">
+            <lucide-icon name="shield-check" [size]="16"></lucide-icon>
+            Cuenta pendiente de validacion
+          </span>
+          <h1>Valida tu cuenta para publicar propiedades.</h1>
+          <p>
+            Antes de aceptar anuncios verificamos identidad y datos de contacto. Esto mejora la confianza de los
+            compradores y mantiene la calidad de la plataforma.
+          </p>
+          <div class="validation-panel__actions">
+            <button type="button" class="owner-primary">Solicitar validacion</button>
+            <a routerLink="/app/my-properties" class="owner-secondary">Ver mis propiedades</a>
+          </div>
+        </div>
+
+        <div class="validation-summary" aria-label="Resumen del proceso de validacion">
+          <div class="validation-summary__icon">
+            <lucide-icon name="badge-check" [size]="42"></lucide-icon>
+          </div>
+          <strong>Revision operativa</strong>
+          <span>Respuesta estimada: hasta 24 hs habiles</span>
+        </div>
+
+        <div class="validation-requirements">
+          <article>
+            <lucide-icon name="file-check" [size]="20"></lucide-icon>
+            <div>
+              <strong>Documentacion</strong>
+              <span>Datos del propietario o anunciante.</span>
+            </div>
+          </article>
+          <article>
+            <lucide-icon name="circle-check" [size]="20"></lucide-icon>
+            <div>
+              <strong>Contacto verificable</strong>
+              <span>Email, telefono o WhatsApp operativo.</span>
+            </div>
+          </article>
+          <article>
+            <lucide-icon name="clock" [size]="20"></lucide-icon>
+            <div>
+              <strong>Control de calidad</strong>
+              <span>Revisamos que el anuncio sea confiable.</span>
+            </div>
+          </article>
+        </div>
+      </section>
+    } @else if (!started() && !editingPropertyId()) {
+      <section class="entry-panel">
+        <div class="entry-panel__icon">⌂</div>
+        <h1>Publica tu propiedad</h1>
+        <p>Carga los datos de tu inmueble y nuestro equipo la revisara antes de publicarla en el sitio.</p>
+        <div class="entry-panel__benefits">
+          <span>Mas visibilidad</span>
+          <span>Proceso simple</span>
+          <span>Revision de calidad</span>
+        </div>
+        <button type="button" class="owner-primary" (click)="begin()">Comenzar publicacion</button>
+      </section>
+    } @else {
+      <header class="owner-header">
+        <div>
+          <a routerLink="/app/my-properties" class="owner-back">← Volver a mis propiedades</a>
+          <h1>{{ editingPropertyId() ? 'Editar propiedad' : 'Publica tu propiedad' }}</h1>
+          <p>Estado: <strong>{{ statusLabel(currentStatus()) }}</strong></p>
+        </div>
+        <span class="autosave">Guardado automatico</span>
+      </header>
+
+      @if (error()) {
+        <p class="owner-banner owner-banner--error">{{ error() }}</p>
+      }
+      @if (success()) {
+        <p class="owner-banner">{{ success() }}</p>
+      }
+      @if (loading()) {
+        <section class="owner-card">Cargando propiedad...</section>
+      } @else {
+        <form class="owner-form" (ngSubmit)="saveDraft()">
+          <nav class="section-steps" aria-label="Secciones del formulario">
+            @for (step of ['Datos basicos','Ubicacion','Precio','Caracteristicas','Amenities','Imagenes','Contacto']; track step; let index = $index) {
+              <a [href]="'#section-' + index"><span>{{ index + 1 }}</span>{{ step }}</a>
+            }
+          </nav>
+
+          <nav class="mobile-stepper" aria-label="Pasos de publicacion">
+            <p>Paso {{ mobileStep() + 1 }} de {{ mobileSteps.length }}</p>
+            <div>
+              @for (step of mobileSteps; track step; let index = $index) {
+                <button type="button" [class.is-active]="mobileStep() === index" (click)="setMobileStep(index)">
+                  <span></span>
+                  {{ step }}
+                </button>
+              }
+            </div>
+          </nav>
+
+          <section class="owner-card" id="section-0" [class.owner-card--mobile-hidden]="!isMobileStepVisible(0)">
+            <h2>Datos basicos</h2>
+            <p>Contanos que tipo de propiedad queres publicar.</p>
+            <div class="form-grid">
+              <label>Tipo de operacion
+                <select name="operationType" [(ngModel)]="draft.operationType" required>
+                  <option value="SALE">Venta</option>
+                  <option value="RENT">Alquiler</option>
+                </select>
+              </label>
+              <label>Tipo de propiedad
+                <select name="propertyType" [(ngModel)]="draft.propertyType" required>
+                  <option value="APARTMENT">Departamento</option>
+                  <option value="HOUSE">Casa</option>
+                  <option value="LAND">Terreno</option>
+                  <option value="OFFICE">Oficina</option>
+                  <option value="STORE">Local</option>
+                </select>
+              </label>
+              <label class="span-2">Titulo
+                <input name="title" [(ngModel)]="draft.title" minlength="8" required placeholder="Hermoso departamento de 2 ambientes en Palermo" />
+              </label>
+              <label class="span-2">Descripcion
+                <textarea name="description" [(ngModel)]="draft.description" minlength="20" required rows="5" placeholder="Describe ubicacion, estado, luminosidad y diferenciales."></textarea>
+              </label>
+            </div>
+          </section>
+
+          <section class="owner-card" id="section-1" [class.owner-card--mobile-hidden]="!isMobileStepVisible(2)">
+            <h2>Ubicacion</h2>
+            <div class="form-grid">
+              <label>Provincia<input name="province" [(ngModel)]="draft.province" required /></label>
+              <label>Ciudad<input name="city" [(ngModel)]="draft.city" required /></label>
+              <label>Barrio<input name="neighborhood" [(ngModel)]="draft.neighborhood" required /></label>
+              <label>Direccion<input name="address" [(ngModel)]="draft.address" required /></label>
+              <label class="check span-2"><input type="checkbox" name="showExactAddress" [(ngModel)]="draft.showExactAddress" /> Mostrar direccion exacta en la publicacion</label>
+            </div>
+          </section>
+
+          <section class="owner-card" id="section-2" [class.owner-card--mobile-hidden]="!isMobileStepVisible(0)">
+            <h2>Precio</h2>
+            <div class="form-grid">
+              <label>Moneda
+                <select name="currency" [(ngModel)]="draft.currency" required>
+                  <option value="USD">USD</option>
+                  <option value="ARS">ARS</option>
+                </select>
+              </label>
+              <label>Precio<input type="number" name="price" [(ngModel)]="draft.price" min="1" required /></label>
+              <label>Expensas<input type="number" name="expenses" [(ngModel)]="draft.expenses" min="0" /></label>
+              <label class="check"><input type="checkbox" name="acceptsCredit" [(ngModel)]="draft.acceptsCredit" /> Acepta credito</label>
+            </div>
+          </section>
+
+          <section class="owner-card" id="section-3" [class.owner-card--mobile-hidden]="!isMobileStepVisible(1)">
+            <h2>Caracteristicas</h2>
+            <div class="form-grid form-grid--compact">
+              <label>Ambientes<input type="number" name="rooms" [(ngModel)]="draft.rooms" min="0" /></label>
+              <label>Dormitorios<input type="number" name="bedrooms" [(ngModel)]="draft.bedrooms" min="0" /></label>
+              <label>Banos<input type="number" name="bathrooms" [(ngModel)]="draft.bathrooms" min="0" /></label>
+              <label>Cubiertos m2<input type="number" name="coveredAreaM2" [(ngModel)]="draft.coveredAreaM2" min="0" /></label>
+              <label>Totales m2<input type="number" name="totalAreaM2" [(ngModel)]="draft.totalAreaM2" min="0" /></label>
+              <label>Piso<input type="number" name="floor" [(ngModel)]="draft.floor" /></label>
+              <label>Antiguedad<input type="number" name="age" [(ngModel)]="draft.age" min="0" /></label>
+            </div>
+          </section>
+
+          <section class="owner-card" id="section-4" [class.owner-card--mobile-hidden]="!isMobileStepVisible(1)">
+            <h2>Amenities</h2>
+            <label>Amenities y diferenciales
+              <input name="featuresText" [(ngModel)]="draft.featuresText" placeholder="Balcon, cochera, parrilla, pileta" />
+            </label>
+          </section>
+
+          <section class="owner-card" id="section-5" [class.owner-card--mobile-hidden]="!isMobileStepVisible(3)">
+            <h2>Imagenes de la propiedad</h2>
+            <div class="upload-zone" (drop)="handleDrop($event)" (dragover)="$event.preventDefault()">
+              <span>⇧</span>
+              <p>Arrastra imagenes aca o hace clic para seleccionar</p>
+              <small>JPG, PNG o WebP. Maximo 20 imagenes.</small>
+              <input type="file" multiple accept="image/*" (change)="handleFiles($event)" />
+            </div>
+            @if (images().length > 0) {
+              <div class="image-grid">
+                @for (image of images(); track image; let index = $index) {
+                  <figure [class.is-main]="mainImageUrl() === image">
+                    <img [src]="image" [alt]="'Imagen ' + (index + 1)" />
+                    <figcaption>
+                      <button type="button" (click)="setMainImage(image)">Principal</button>
+                      <button type="button" (click)="moveImage(image, -1)">←</button>
+                      <button type="button" (click)="moveImage(image, 1)">→</button>
+                      <button type="button" (click)="removeImage(image)">×</button>
+                    </figcaption>
+                  </figure>
+                }
+              </div>
+            }
+          </section>
+
+          <section class="owner-card" id="section-6" [class.owner-card--mobile-hidden]="!isMobileStepVisible(2)">
+            <h2>Contacto</h2>
+            <div class="form-grid">
+              <label>Nombre<input name="contactName" [(ngModel)]="draft.contactName" required /></label>
+              <label>Email<input type="email" name="contactEmail" [(ngModel)]="draft.contactEmail" required /></label>
+              <label>Telefono<input name="contactPhone" [(ngModel)]="draft.contactPhone" /></label>
+              <label>WhatsApp<input name="contactWhatsapp" [(ngModel)]="draft.contactWhatsapp" /></label>
+            </div>
+          </section>
+
+          <footer class="form-actions" [class.form-actions--final]="mobileStep() === mobileSteps.length - 1">
+            <button type="button" class="form-actions__desktop" (click)="cancel()">Cancelar</button>
+            <button type="button" class="form-actions__mobile" [disabled]="mobileStep() === 0" (click)="previousMobileStep()">Anterior</button>
+            @if (mobileStep() < mobileSteps.length - 1) {
+              <button type="button" class="owner-primary form-actions__mobile" (click)="nextMobileStep()">Siguiente</button>
+            }
+            <button type="submit" class="form-actions__final" [disabled]="saving()">{{ saving() ? 'Guardando...' : 'Guardar borrador' }}</button>
+            <button type="button" class="owner-primary form-actions__final" (click)="submitForReview()" [disabled]="saving()">
+              {{ saving() ? 'Enviando...' : 'Enviar a revision' }}
+            </button>
+          </footer>
+        </form>
+      }
+    }
+  </main>
+</section>

@@ -1,0 +1,41 @@
+<section class="profile-workspace">
+  <app-sidebar activeSection="profile" />
+
+  <main class="profile-main">
+    <section class="profile-card">
+      <div class="profile-avatar">
+        {{ getUserInitial() }}
+      </div>
+
+      <h1>{{ authStore.user()?.email ?? 'Usuario' }}</h1>
+      <p>{{ authStore.user()?.role === 'ADMIN' ? 'Cuenta admin' : 'Cuenta activa' }}</p>
+    </section>
+
+    <nav class="profile-list" aria-label="Opciones de perfil">
+      <a routerLink="/app/profile" class="profile-row">
+        <lucide-icon name="user" [size]="18"></lucide-icon>
+        <span>Mis datos</span>
+      </a>
+      <a routerLink="/app/my-properties" class="profile-row">
+        <lucide-icon name="house" [size]="18"></lucide-icon>
+        <span>Mis propiedades</span>
+      </a>
+      <a routerLink="/app/favorites" class="profile-row">
+        <lucide-icon name="heart" [size]="18"></lucide-icon>
+        <span>Mis favoritos</span>
+      </a>
+      <a routerLink="/app/chats" class="profile-row">
+        <lucide-icon name="search" [size]="18"></lucide-icon>
+        <span>Busquedas guardadas</span>
+      </a>
+      <button type="button" class="profile-row">
+        <lucide-icon name="bell" [size]="18"></lucide-icon>
+        <span>Notificaciones</span>
+      </button>
+      <button type="button" class="profile-row" (click)="logout()">
+        <lucide-icon name="log-out" [size]="18"></lucide-icon>
+        <span>Cerrar sesion</span>
+      </button>
+    </nav>
+  </main>
+</section>

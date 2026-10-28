@@ -1,0 +1,63 @@
+<aside class="app-sidebar">
+  <a routerLink="/" class="app-sidebar__brand">
+    <span class="app-sidebar__brand-mark">
+      <lucide-icon name="house" [size]="16"></lucide-icon>
+    </span>
+    <strong>busca.ar</strong>
+  </a>
+
+  <button class="app-sidebar__new" type="button" (click)="openSearch()">
+    <lucide-icon name="plus" [size]="16"></lucide-icon>
+    Nueva busqueda
+  </button>
+
+  <nav class="app-sidebar__nav" aria-label="Navegacion principal">
+    <p>Navegacion</p>
+    <a routerLink="/" class="app-sidebar__item" [class.is-active]="activeSection === 'home'">
+      <lucide-icon name="house" [size]="15"></lucide-icon>
+      Inicio
+    </a>
+    <a routerLink="/app/chats" class="app-sidebar__item" [class.is-active]="activeSection === 'chats'">
+      <lucide-icon name="messages-square" [size]="15"></lucide-icon>
+      Chats
+    </a>
+    <a routerLink="/app/map" class="app-sidebar__item" [class.is-active]="activeSection === 'map'">
+      <lucide-icon name="map" [size]="15"></lucide-icon>
+      Mapa
+    </a>
+    <a routerLink="/app/favorites" class="app-sidebar__item" [class.is-active]="activeSection === 'favorites'">
+      <lucide-icon name="star" [size]="15"></lucide-icon>
+      Favoritos
+    </a>
+    <a routerLink="/blog" class="app-sidebar__item" [class.is-active]="activeSection === 'blog'">
+      <lucide-icon name="book-open" [size]="15"></lucide-icon>
+      Blog
+    </a>
+    <a routerLink="/app/publish-property" class="app-sidebar__item" [class.is-active]="activeSection === 'publish'">
+      <lucide-icon name="building-2" [size]="15"></lucide-icon>
+      Publicar propiedad
+    </a>
+    <a routerLink="/app/my-properties" class="app-sidebar__item" [class.is-active]="activeSection === 'properties'">
+      <lucide-icon name="layout-grid" [size]="15"></lucide-icon>
+      Mis propiedades
+    </a>
+    <a routerLink="/app/profile" class="app-sidebar__item" [class.is-active]="activeSection === 'profile'">
+      <lucide-icon name="user" [size]="15"></lucide-icon>
+      Perfil
+    </a>
+    @if (authStore.user()?.role === 'ADMIN') {
+      <a routerLink="/app/admin" class="app-sidebar__item" [class.is-active]="activeSection === 'admin'">
+        <lucide-icon name="settings" [size]="15"></lucide-icon>
+        Admin
+      </a>
+    }
+  </nav>
+
+  <footer class="app-sidebar__user">
+    <span class="app-sidebar__avatar">{{ getUserInitial() }}</span>
+    <div>
+      <strong>{{ authStore.user()?.email ?? 'Invitado' }}</strong>
+      <small>{{ getAccountLabel() }}</small>
+    </div>
+  </footer>
+</aside>

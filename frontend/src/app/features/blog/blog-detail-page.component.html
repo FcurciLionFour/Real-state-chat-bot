@@ -1,0 +1,46 @@
+<section class="blog-workspace">
+  <aside class="blog-sidebar">
+    <a routerLink="/" class="blog-brand">
+      <span class="blog-brand__mark">⌂</span>
+      <strong>busca.ar</strong>
+    </a>
+
+    <button class="blog-new" type="button" (click)="openSearch()"><span>+</span>Nueva busqueda</button>
+
+    <nav class="blog-nav" aria-label="Navegacion principal">
+      <p>Navegacion</p>
+      <a routerLink="/" class="blog-nav__item"><span>⌂</span>Inicio</a>
+      <a routerLink="/search" class="blog-nav__item"><span>Buscar</span></a>
+      @if (authStore.isAuthenticated()) {
+        <a routerLink="/app/chats" class="blog-nav__item"><span>○</span>Chats</a>
+        <a routerLink="/app/favorites" class="blog-nav__item"><span>☆</span>Favoritos</a>
+      }
+      <a routerLink="/blog" class="blog-nav__item is-active"><span>□</span>Blog</a>
+      <a routerLink="/app/publish-property" class="blog-nav__item"><span>↗</span>Publicar propiedad</a>
+      <a routerLink="/app/my-properties" class="blog-nav__item"><span>▦</span>Mis propiedades</a>
+      @if (authStore.user()?.role === 'ADMIN') {
+        <a routerLink="/app/admin" class="blog-nav__item"><span>⚙</span>Admin</a>
+      }
+    </nav>
+
+    <footer class="blog-user">
+      <span>{{ getUserInitial() }}</span>
+      <div>
+        <strong>{{ authStore.user()?.email ?? 'Invitado' }}</strong>
+        <small>{{ authStore.isAuthenticated() ? 'Cuenta activa' : 'Visitante' }}</small>
+      </div>
+    </footer>
+  </aside>
+
+  <main class="blog-main">
+    @if (article(); as articleValue) {
+      <app-blog-detail [article]="articleValue" [related]="related()" (searchRelated)="searchRelated($event)" />
+    } @else {
+      <section class="blog-suggest">
+        <h3>Articulo no encontrado</h3>
+        <p>El contenido que buscabas no esta disponible.</p>
+        <a routerLink="/blog">Volver al blog</a>
+      </section>
+    }
+  </main>
+</section>

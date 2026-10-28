@@ -1,0 +1,197 @@
+<section class="map-workspace">
+  <app-sidebar activeSection="map" />
+
+  <main class="map-main" [class.map-main--detail-open]="detailOpen() && selectedProperty()">
+    <section class="map-search-state" aria-label="Estado de busqueda en mapa">
+      <div>
+        <label class="map-search-state__input">
+          <span>{{ formatSourceLabel() }} · {{ filteredProperties().length }} visibles</span>
+          <input [ngModel]="query()" (ngModelChange)="updateQuery($event)" placeholder="Buscar zona o ajustar búsqueda..." />
+        </label>
+        <p>{{ formatSourceLabel() }} · {{ filteredProperties().length }} propiedades visibles</p>
+      </div>
+
+      <div class="map-search-state__chips" aria-label="Filtros activos">
+        @for (chip of activeFilterChips(); track chip.key) {
+          <span class="map-state-chip">
+            {{ chip.label }}
+            @if (chip.removable) {
+              <button type="button" (click)="removeFilterChip(chip.key)" [attr.aria-label]="'Quitar ' + chip.label">×</button>
+            }
+          </span>
+        }
+      </div>
+
+      <div class="map-search-state__actions">
+        <button type="button" class="map-state-button">Más filtros</button>
+        <button type="button" class="map-state-button" [class.is-active]="drawingMode()" (click)="toggleDrawingMode()">Dibujar zona</button>
+        <button type="button" class="map-state-button map-state-button--primary">Guardar búsqueda</button>
+      </div>
+    </section>
+
+    <section class="map-filters" aria-label="Filtros de mapa">
+      <label class="map-search">
+        <span>Ubicacion</span>
+        <input [ngModel]="query()" (ngModelChange)="updateQuery($event)" placeholder="Palermo, CABA" />
+      </label>
+
+      <label>
+        <span>Operacion</span>
+        <select [ngModel]="operationFilter()" (ngModelChange)="setOperation($event)">
+          <option value="ALL">Venta y alquiler</option>
+          <option value="BUY">Venta</option>
+          <option value="RENT">Alquiler</option>
+        </select>
+      </label>
+
+      <label>
+        <span>Tipo</span>
+        <select [ngModel]="propertyTypeFilter()" (ngModelChange)="setPropertyType($event)">
+          <option value="ALL">Todos</option>
+          <option value="APARTMENT">Departamento</option>
+          <option value="HOUSE">Casa</option>
+          <option value="PH">PH</option>
+          <option value="OFFICE">Oficina</option>
+        </select>
+      </label>
+
+      <label>
+        <span>Precio max.</span>
+        <input type="number" placeholder="Ej: 150000" (input)="setPriceMax($any($event.target).value)" />
+      </label>
+
+      <label>
+        <span>Ambientes</span>
+        <select (change)="setRooms($any($event.target).value)">
+          <option value="">Todos</option>
+          <option value="1">1+</option>
+          <option value="2">2+</option>
+          <option value="3">3+</option>
+          <option value="4">4+</option>
+        </select>
+      </label>
+    </section>
+
+    @if (error()) {
+      <p class="map-error">{{ error() }}</p>
+    }
+
+    <section class="map-content">
+      <aside class="map-list">
+        <div class="map-list__toolbar">
+          <div>
+            <strong>{{ filteredProperties().length }} propiedades encontradas</strong>
+            <span>Lista sincronizada con el area buscada.</span>
+          </div>
+          <select>
+            <option>Mas relevantes</option>
+            <option>Menor precio</option>
+            <option>Mayor precio</option>
+          </select>
+        </div>
+
+        @if (loading()) {
+          <section class="map-empty">Cargando mapa...</section>
+        } @else if (filteredProperties().length === 0) {
+          <section class="map-empty">
+            <strong>Sin resultados en esta zona</strong>
+            <span>Move el mapa, aleja el zoom o limpia algun filtro.</span>
+          </section>
+        } @else {
+          <div class="map-list__items">
+            @for (property of filteredProperties(); track trackProperty($index, property)) {
+              <article
+                class="map-list-card"
+                [class.is-active]="previewProperty()?.id === property.id || selectedProperty()?.id === property.id"
+                (click)="selectFromList(property)"
+              >
+                <img [src]="property.image" [alt]="property.title" loading="lazy" />
+                <div class="map-list-card__body">
+                  <div class="map-list-card__top">
+                    <span [class.map-chip--rent]="property.operation === 'RENT'">{{ property.operation === 'RENT' ? 'Alquiler' : 'Venta' }}</span>
+                    <button type="button" (click)="toggleFavorite(property); $event.stopPropagation()">
+                      {{ isFavorite(property) ? 'Guardado' : 'Guardar' }}
+                    </button>
+                  </div>
+                  <h2>{{ property.title }}</h2>
+                  <p>{{ property.location }}</p>
+                  <strong>{{ formatPrice(property) }}</strong>
+                  <small>{{ property.rooms }} amb. · {{ property.area }} m2 · {{ property.locationPrecision === 'address' ? 'Ubicacion por direccion' : 'Zona aproximada' }}</small>
+                </div>
+              </article>
+            }
+          </div>
+        }
+      </aside>
+
+      <section class="map-canvas-shell">
+        <div #mapCanvas class="map-canvas"></div>
+
+        @if (searchAreaDirty()) {
+          <button class="map-search-area" type="button" (click)="searchCurrentArea()">Buscar en esta zona</button>
+        }
+
+        @if (drawingMode()) {
+          <div class="map-draw-hint">Modo dibujo activo. La seleccion por poligono queda preparada para la siguiente fase.</div>
+        }
+
+        @if (previewProperty(); as property) {
+          <article class="map-preview-card">
+            <button class="map-preview-card__close" type="button" (click)="closePreview()">×</button>
+            <img [src]="property.image" [alt]="property.title" loading="lazy" />
+            <div>
+              <span [class.map-chip--rent]="property.operation === 'RENT'">{{ property.operation === 'RENT' ? 'Alquiler' : 'Venta' }}</span>
+              <h2>{{ property.title }}</h2>
+              <p>{{ property.location }}</p>
+              <strong>{{ formatPrice(property) }}</strong>
+              <small>{{ property.rooms }} amb. · {{ property.area }} m2 · {{ property.locationPrecision === 'address' ? 'Direccion estimada' : 'Zona aproximada' }}</small>
+              <button type="button" (click)="openDetail(property)">Ver detalle</button>
+            </div>
+          </article>
+        }
+      </section>
+
+      @if (detailOpen() && selectedProperty(); as property) {
+        <aside class="map-detail">
+          <button class="map-detail__close" type="button" (click)="closeDetail()">×</button>
+          <div class="map-detail__media">
+            <img [src]="property.image" [alt]="property.title" loading="lazy" />
+            <span [class.map-chip--rent]="property.operation === 'RENT'">{{ property.operation === 'RENT' ? 'Alquiler' : 'Venta' }}</span>
+          </div>
+
+          <div class="map-detail__body">
+            <p class="map-detail__price">{{ formatPrice(property) }}</p>
+            <h2>{{ property.title }}</h2>
+            <p>{{ property.location }}</p>
+
+            <dl>
+              <div><dt>Ambientes</dt><dd>{{ property.rooms }}</dd></div>
+              <div><dt>Dormitorios</dt><dd>{{ property.bedrooms }}</dd></div>
+              <div><dt>Banos</dt><dd>{{ property.bathrooms }}</dd></div>
+              <div><dt>Superficie</dt><dd>{{ property.area }} m2</dd></div>
+              <div><dt>Mapa</dt><dd>{{ property.locationPrecision === 'address' ? 'Direccion estimada' : 'Zona aproximada' }}</dd></div>
+              <div><dt>Expensas</dt><dd>{{ property.expenses ? property.currency + ' ' + property.expenses : 'No informadas' }}</dd></div>
+            </dl>
+
+            @if (property.features.length > 0) {
+              <div class="map-detail__features">
+                @for (feature of property.features.slice(0, 6); track feature) {
+                  <span>{{ feature }}</span>
+                }
+              </div>
+            }
+
+            <a [href]="property.sourceUrl" target="_blank" rel="noreferrer">Ver detalle completo</a>
+            <button type="button" (click)="toggleCompare(property)">
+              {{ isComparing(property) ? 'Quitar de comparacion' : 'Comparar propiedad' }}
+            </button>
+            <button type="button" (click)="toggleFavorite(property)">
+              {{ isFavorite(property) ? 'Quitar favorito' : 'Guardar propiedad' }}
+            </button>
+            <button type="button" (click)="openInChat(property)">Abrir en chat IA</button>
+          </div>
+        </aside>
+      }
+    </section>
+  </main>
+</section>

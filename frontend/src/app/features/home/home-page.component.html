@@ -1,0 +1,39 @@
+<section class="home-entry">
+  <main class="home-entry__main">
+    <p class="home-entry__kicker">Tu agente inmobiliario con IA</p>
+    <h1>Encontra tu proximo hogar con ayuda de inteligencia artificial</h1>
+    <p class="home-entry__lead">Contanos que estas buscando en lenguaje natural y encontra las mejores opciones al instante.</p>
+
+    <form class="home-search" (ngSubmit)="submitSearch()">
+      <span class="home-search__icon">⌕</span>
+      <input
+        [(ngModel)]="query"
+        name="query"
+        type="search"
+        autocomplete="off"
+        placeholder="Que tipo de propiedad estas buscando?"
+        aria-label="Que tipo de propiedad estas buscando?"
+      />
+      <button type="submit" aria-label="Buscar">→</button>
+    </form>
+
+    <section class="home-examples" aria-label="Ejemplos de busqueda">
+      <p>Ejemplos de busquedas</p>
+      <div>
+        @for (example of examples; track example.label) {
+          <button type="button" (click)="submitSearch(example.label)">
+            {{ example.label }}
+          </button>
+        }
+      </div>
+    </section>
+
+    <section class="home-blog" aria-label="Articulos destacados">
+      <header>
+        <h2>Articulos destacados</h2>
+        <a routerLink="/blog">Ver todos</a>
+      </header>
+      <app-blog-grid [articles]="featuredArticles" [compact]="true" />
+    </section>
+  </main>
+</section>

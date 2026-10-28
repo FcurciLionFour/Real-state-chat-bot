@@ -1,0 +1,55 @@
+<section class="blog-workspace">
+  <app-sidebar activeSection="blog" />
+
+  <main class="blog-main">
+    <header class="blog-header">
+      <div>
+        <h1>Blog inmobiliario</h1>
+        <p>Informacion, tendencias y consejos para tomar mejores decisiones.</p>
+      </div>
+      <label class="blog-search">
+        <span>⌕</span>
+        <input type="search" [value]="query()" placeholder="Buscar articulos..." (input)="updateQuery($any($event.target).value)" />
+      </label>
+    </header>
+
+    <div class="blog-filter-row">
+      @for (filter of filters; track filter.value) {
+        <button type="button" [class.is-active]="activeFilter() === filter.value" (click)="setFilter(filter.value)">
+          {{ filter.label }}
+        </button>
+      }
+    </div>
+
+    @if (error()) {
+      <section class="blog-suggest">
+        <h3>No se pudo actualizar el blog</h3>
+        <p>{{ error() }}</p>
+      </section>
+    }
+
+    @if (loading()) {
+      <section class="blog-suggest">
+        <h3>Cargando articulos...</h3>
+        <p>Estamos leyendo el contenido publicado desde el backend.</p>
+      </section>
+    } @else if (articles().length === 0) {
+      <section class="blog-suggest">
+        <h3>No hay articulos para este filtro</h3>
+        <p>Proba con otra categoria o busqueda.</p>
+      </section>
+    } @else {
+      <app-blog-grid [articles]="articles()" />
+    }
+
+    <footer class="blog-pagination">
+      <button type="button" disabled>‹</button>
+      <button type="button" class="is-active">1</button>
+      <button type="button">2</button>
+      <button type="button">3</button>
+      <span>...</span>
+      <button type="button">12</button>
+      <button type="button">›</button>
+    </footer>
+  </main>
+</section>
